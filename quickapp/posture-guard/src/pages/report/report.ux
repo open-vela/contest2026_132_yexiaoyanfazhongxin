@@ -1,0 +1,379 @@
+<template>
+  <div class="page" @swipe="back">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <text class="back-btn" onclick="back">‹</text>
+      <text class="title">健康报表</text>
+      <text class="date-text">{{ todayDate }}</text>
+    </div>
+
+    <!-- 今日体态评分趋势 -->
+    <div class="chart-section">
+      <text class="section-title">今日体态评分趋势</text>
+      <div class="chart-wrap">
+        <chart
+          class="chart"
+          type="line"
+          options="{{ scoreChartOpts }}"
+          datasets="{{ scoreChartData }}"
+        ></chart>
+      </div>
+      <div class="chart-labels">
+        <text class="label-item">6:00</text>
+        <text class="label-item">12:00</text>
+        <text class="label-item">18:00</text>
+        <text class="label-item">24:00</text>
+      </div>
+    </div>
+
+    <!-- 体态异常类型分布 -->
+    <div class="chart-section">
+      <text class="section-title">体态异常分布</text>
+      <div class="chart-wrap">
+        <chart
+          class="chart"
+          type="bar"
+          options="{{ barChartOpts }}"
+          datasets="{{ barChartData }}"
+        ></chart>
+      </div>
+      <div class="bar-legend">
+        <text class="legend-item" style="color: #ff6b6b;">🪑 久坐</text>
+        <text class="legend-item" style="color: #ffd93d;">📱 低头</text>
+        <text class="legend-item" style="color: #4ecdc4;">🦵 跷腿</text>
+      </div>
+    </div>
+
+    <!-- 数据处理统计 -->
+    <div class="stats-section">
+      <text class="section-title">数据处理统计</text>
+
+      <div class="stat-row">
+        <div class="stat-item">
+          <text class="stat-value">{{ totalSamples }}</text>
+          <text class="stat-label">传感器采样</text>
+        </div>
+        <div class="stat-item">
+          <text class="stat-value">{{ anonymizedCount }}</text>
+          <text class="stat-label">脱敏处理</text>
+        </div>
+        <div class="stat-item">
+          <text class="stat-value">{{ encryptedCount }}</text>
+          <text class="stat-label">加密存储</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 安全摘要 -->
+    <div class="summary-section">
+      <div class="summary-card">
+        <text class="summary-title">🛡️ 安全摘要</text>
+        <div class="summary-item">
+          <text class="summary-label">数据本地化率</text>
+          <text class="summary-value highlight">100%</text>
+        </div>
+        <div class="summary-item">
+          <text class="summary-label">网络请求数</text>
+          <text class="summary-value">0</text>
+        </div>
+        <div class="summary-item">
+          <text class="summary-label">加密覆盖率</text>
+          <text class="summary-value highlight">100%</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  private: {
+    todayDate: '',
+    // 评分趋势图
+    scoreChartData: [
+      {
+        strokeColor: '#00d4aa',
+        fillColor: 'rgba(0,212,170,0.2)',
+        data: [100, 95, 92, 88, 85, 90, 95, 100, 98, 95, 92, 88],
+        gradient: true,
+      },
+    ],
+    scoreChartOpts: {
+      xAxis: {
+        min: 0,
+        max: 11,
+        display: false,
+        axisTick: 12,
+      },
+      yAxis: {
+        min: 0,
+        max: 100,
+        display: false,
+        axisTick: 11,
+      },
+      series: {
+        lineStyle: { width: '2px' },
+      },
+    },
+    // 异常分布柱状图
+    barChartData: [
+      {
+        fillColor: '#ff6b6b',
+        data: [3, 1, 0, 2, 0, 0, 1, 0, 0, 0, 0, 0],
+      },
+      {
+        fillColor: '#ffd93d',
+        data: [0, 1, 2, 1, 3, 2, 1, 0, 0, 0, 0, 0],
+      },
+      {
+        fillColor: '#4ecdc4',
+        data: [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      },
+    ],
+    barChartOpts: {
+      xAxis: {
+        min: 0,
+        max: 11,
+        display: false,
+        axisTick: 12,
+      },
+      yAxis: {
+        min: 0,
+        max: 5,
+        display: false,
+        axisTick: 6,
+      },
+    },
+    // 统计数据
+    totalSamples: 0,
+    anonymizedCount: 0,
+    encryptedCount: 0,
+  },
+
+  onReady() {
+    this._updateDate()
+    this._loadStats()
+  },
+
+  _updateDate() {
+    const now = new Date()
+    const month = now.getMonth() + 1
+    const day = now.getDate()
+    this.todayDate = `${month}月${day}日`
+  },
+
+  _loadStats() {
+    // 模拟统计数据（实际应从 DataManager 加载）
+    this.totalSamples = 12580
+    this.anonymizedCount = 12580
+    this.encryptedCount = 8420
+
+    // 生成模拟趋势数据
+    this._generateMockData()
+  },
+
+  _generateMockData() {
+    const now = new Date()
+    const hour = now.getHours()
+
+    // 生成今日评分趋势（模拟）
+    const scoreData = []
+    for (let i = 0; i < 12; i++) {
+      const h = i * 2
+      let score = 100
+      if (h < 8) score = 95 + Math.random() * 5
+      else if (h < 12) score = 85 + Math.random() * 10
+      else if (h < 14) score = 80 + Math.random() * 10
+      else if (h < 18) score = 85 + Math.random() * 10
+      else score = 90 + Math.random() * 10
+
+      scoreData.push(Math.round(score))
+    }
+
+    this.scoreChartData = [
+      {
+        ...this.scoreChartData[0],
+        data: scoreData,
+      },
+    ]
+
+    // 生成异常分布数据（模拟）
+    this.barChartData = [
+      {
+        fillColor: '#ff6b6b',
+        data: [1, 2, 0, 3, 1, 0, 2, 0, 0, 0, 0, 0],
+      },
+      {
+        fillColor: '#ffd93d',
+        data: [0, 1, 2, 1, 2, 3, 1, 0, 0, 0, 0, 0],
+      },
+      {
+        fillColor: '#4ecdc4',
+        data: [0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+      },
+    ]
+  },
+
+  back(event) {
+    if (!event || event.direction === 'right') {
+      import('@system.router').then((router) => {
+        router.back()
+      })
+    }
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  align-items: center;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+.header {
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  margin-top: 15px;
+}
+
+.back-btn {
+  font-size: 32px;
+  color: #ffffff;
+  width: 40px;
+}
+
+.title {
+  font-size: 24px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.date-text {
+  font-size: 16px;
+  color: #888888;
+}
+
+/* 图表区域 */
+.chart-section {
+  width: 420px;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+.section-title {
+  font-size: 16px;
+  color: #888888;
+  margin-bottom: 8px;
+}
+
+.chart-wrap {
+  width: 396px;
+  height: 100px;
+}
+
+.chart {
+  width: 396px;
+  height: 100px;
+}
+
+.chart-labels {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+
+.label-item {
+  font-size: 12px;
+  color: #666666;
+}
+
+.bar-legend {
+  flex-direction: row;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.legend-item {
+  font-size: 13px;
+  margin: 0 8px;
+}
+
+/* 统计区域 */
+.stats-section {
+  width: 420px;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+.stat-row {
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+.stat-item {
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+/* 安全摘要 */
+.summary-section {
+  width: 420px;
+  margin-top: 10px;
+}
+
+.summary-card {
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  padding: 12px 15px;
+}
+
+.summary-title {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.summary-item {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.summary-label {
+  font-size: 14px;
+  color: #888888;
+}
+
+.summary-value {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.summary-value.highlight {
+  color: #00d4aa;
+}
+</style>

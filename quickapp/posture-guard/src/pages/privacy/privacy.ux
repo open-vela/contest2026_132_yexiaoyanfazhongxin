@@ -1,0 +1,430 @@
+<template>
+  <div class="page" @swipe="back">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <text class="back-btn" onclick="back">‹</text>
+      <text class="title">隐私防护</text>
+      <text class="shield-icon">🛡️</text>
+    </div>
+
+    <!-- 整体防护状态 -->
+    <div class="protect-status">
+      <text class="protect-icon">✅</text>
+      <text class="protect-title">隐私数据已加密保护</text>
+      <text class="protect-desc">所有敏感数据均在本地加密存储</text>
+    </div>
+
+    <!-- 加密级别展示 -->
+    <div class="level-section">
+      <text class="section-title">数据加密分级</text>
+
+      <div class="level-card">
+        <div class="level-header">
+          <text class="level-badge l1">L1</text>
+          <div class="level-info">
+            <text class="level-name">普通统计</text>
+            <text class="level-desc">体态计数、每日汇总</text>
+          </div>
+          <text class="level-method">明文</text>
+        </div>
+      </div>
+
+      <div class="level-card">
+        <div class="level-header">
+          <text class="level-badge l2">L2</text>
+          <div class="level-info">
+            <text class="level-name">敏感记录</text>
+            <text class="level-desc">体态异常详情</text>
+          </div>
+          <text class="level-method">AES-ECB</text>
+        </div>
+      </div>
+
+      <div class="level-card">
+        <div class="level-header">
+          <text class="level-badge l3">L3</text>
+          <div class="level-info">
+            <text class="level-name">隐私数据</text>
+            <text class="level-desc">心率、压力原始值</text>
+          </div>
+          <text class="level-method">AES-CBC</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据处理对比 -->
+    <div class="compare-section">
+      <text class="section-title">脱敏处理效果</text>
+
+      <div class="compare-row">
+        <div class="compare-item">
+          <text class="compare-label">处理前</text>
+          <div class="compare-data raw-data">
+            <text class="data-line">心率: 72 bpm</text>
+            <text class="data-line">时间: 14:32:15</text>
+            <text class="data-line">坐标: 39.9°N</text>
+          </div>
+        </div>
+
+        <text class="compare-arrow">→</text>
+
+        <div class="compare-item">
+          <text class="compare-label">处理后</text>
+          <div class="compare-data anon-data">
+            <text class="data-line">区间: 正常</text>
+            <text class="data-line">时段: 14:00</text>
+            <text class="data-line">特征: 仅保留</text>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据生命周期 -->
+    <div class="lifecycle-section">
+      <text class="section-title">数据生命周期</text>
+
+      <div class="lifecycle-item">
+        <text class="lc-type">普通统计</text>
+        <div class="lc-bar">
+          <div class="lc-fill" style="width: {{ lcStatPercent }}%;"></div>
+        </div>
+        <text class="lc-days">{{ lcStatDays }}天后过期</text>
+      </div>
+
+      <div class="lifecycle-item">
+        <text class="lc-type">异常记录</text>
+        <div class="lc-bar">
+          <div class="lc-fill l2-fill" style="width: {{ lcAlertPercent }}%;"></div>
+        </div>
+        <text class="lc-days">{{ lcAlertDays }}天后过期</text>
+      </div>
+
+      <div class="lifecycle-item">
+        <text class="lc-type">隐私数据</text>
+        <div class="lc-bar">
+          <div class="lc-fill l3-fill" style="width: {{ lcPrivacyPercent }}%;"></div>
+        </div>
+        <text class="lc-days">{{ lcPrivacyHours }}小时后过期</text>
+      </div>
+    </div>
+
+    <!-- 操作按钮 -->
+    <div class="action-section">
+      <div class="btn btn-clear" onclick="clearPrivacyData">
+        <text class="btn-text">🗑️ 一键清除隐私数据</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import prompt from '@system.prompt'
+import DataManager from '../../lib/data-manager'
+
+export default {
+  private: {
+    lcStatPercent: 85,
+    lcStatDays: 6,
+    lcAlertPercent: 60,
+    lcAlertDays: 18,
+    lcPrivacyPercent: 30,
+    lcPrivacyHours: 16,
+    dataManager: null,
+  },
+
+  onReady() {
+    this.dataManager = new DataManager()
+    this._updateLifecycle()
+  },
+
+  _updateLifecycle() {
+    // 模拟生命周期数据（实际应从存储中计算）
+    const now = new Date()
+    const hour = now.getHours()
+
+    // 普通统计：7天过期
+    this.lcStatDays = 6
+    this.lcStatPercent = Math.round((6 / 7) * 100)
+
+    // 异常记录：30天过期
+    this.lcAlertDays = 18
+    this.lcAlertPercent = Math.round((18 / 30) * 100)
+
+    // 隐私数据：24小时过期
+    this.lcPrivacyHours = 24 - hour
+    this.lcPrivacyPercent = Math.round(((24 - hour) / 24) * 100)
+  },
+
+  back(event) {
+    if (!event || event.direction === 'right') {
+      import('@system.router').then((router) => {
+        router.back()
+      })
+    }
+  },
+
+  clearPrivacyData() {
+    prompt.showToast({ message: '正在清除隐私数据...' })
+
+    this.dataManager.clearAllPrivacyData(() => {
+      prompt.showToast({ message: '✅ 隐私数据已清除' })
+      this._updateLifecycle()
+    })
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  align-items: center;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+.header {
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  margin-top: 15px;
+}
+
+.back-btn {
+  font-size: 32px;
+  color: #ffffff;
+  width: 40px;
+}
+
+.title {
+  font-size: 24px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.shield-icon {
+  font-size: 24px;
+}
+
+/* 防护状态 */
+.protect-status {
+  width: 420px;
+  padding: 20px;
+  background-color: #1a2e1a;
+  border: 1px solid #00d4aa;
+  border-radius: 12px;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.protect-icon {
+  font-size: 36px;
+}
+
+.protect-title {
+  font-size: 20px;
+  color: #00d4aa;
+  font-weight: bold;
+  margin-top: 8px;
+}
+
+.protect-desc {
+  font-size: 14px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+/* 加密级别 */
+.level-section {
+  width: 420px;
+  margin-top: 15px;
+}
+
+.section-title {
+  font-size: 18px;
+  color: #888888;
+  margin-bottom: 10px;
+}
+
+.level-card {
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  padding: 12px 15px;
+  margin-bottom: 8px;
+}
+
+.level-header {
+  flex-direction: row;
+  align-items: center;
+}
+
+.level-badge {
+  width: 40px;
+  height: 24px;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffffff;
+  justify-content: center;
+}
+
+.level-badge.l1 {
+  background-color: #4ecdc4;
+}
+
+.level-badge.l2 {
+  background-color: #ffd93d;
+}
+
+.level-badge.l3 {
+  background-color: #ff6b6b;
+}
+
+.level-info {
+  flex: 1;
+  margin-left: 12px;
+}
+
+.level-name {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.level-desc {
+  font-size: 12px;
+  color: #888888;
+  margin-top: 2px;
+}
+
+.level-method {
+  font-size: 14px;
+  color: #00d4aa;
+  font-weight: bold;
+}
+
+/* 数据对比 */
+.compare-section {
+  width: 420px;
+  margin-top: 15px;
+}
+
+.compare-row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.compare-item {
+  width: 180px;
+}
+
+.compare-label {
+  font-size: 14px;
+  color: #888888;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.compare-data {
+  padding: 10px;
+  border-radius: 8px;
+  height: 80px;
+}
+
+.raw-data {
+  background-color: #2e1a1a;
+  border: 1px solid #ff6b6b;
+}
+
+.anon-data {
+  background-color: #1a2e1a;
+  border: 1px solid #00d4aa;
+}
+
+.data-line {
+  font-size: 12px;
+  color: #cccccc;
+  margin-bottom: 4px;
+}
+
+.compare-arrow {
+  font-size: 24px;
+  color: #00d4aa;
+  margin: 0 10px;
+}
+
+/* 生命周期 */
+.lifecycle-section {
+  width: 420px;
+  margin-top: 15px;
+}
+
+.lifecycle-item {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.lc-type {
+  width: 80px;
+  font-size: 14px;
+  color: #888888;
+}
+
+.lc-bar {
+  flex: 1;
+  height: 8px;
+  background-color: #333333;
+  border-radius: 4px;
+  margin: 0 10px;
+}
+
+.lc-fill {
+  height: 8px;
+  background-color: #4ecdc4;
+  border-radius: 4px;
+}
+
+.l2-fill {
+  background-color: #ffd93d;
+}
+
+.l3-fill {
+  background-color: #ff6b6b;
+}
+
+.lc-days {
+  width: 80px;
+  font-size: 12px;
+  color: #888888;
+  text-align: right;
+}
+
+/* 操作按钮 */
+.action-section {
+  margin-top: 15px;
+}
+
+.btn {
+  width: 300px;
+  height: 50px;
+  border-radius: 25px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-clear {
+  background-color: #333333;
+  border: 1px solid #ff6b6b;
+}
+
+.btn-text {
+  font-size: 16px;
+  color: #ffffff;
+}
+</style>

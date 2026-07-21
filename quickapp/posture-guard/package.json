@@ -1,0 +1,11 @@
+{
+  "name": "posture-guard",
+  "version": "1.0.0",
+  "description": "基于端侧AI体态识别的穿戴隐私安全防护系统",
+  "scripts": {
+    "build": "echo 'Use AIoT IDE to build'"
+  },
+  "devDependencies": {
+    "aiot-toolkit": "^2.0.5"
+  }
+}
