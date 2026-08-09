@@ -1,0 +1,404 @@
+<template>
+  <div class="page" @swipe="back">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <text class="back-btn" onclick="back">‹</text>
+      <text class="title">体态监测</text>
+      <text class="status-dot {{ monitorActive ? 'active' : 'inactive' }}"></text>
+    </div>
+
+    <!-- 实时加速度波形图 -->
+    <div class="chart-section">
+      <text class="section-title">加速度波形</text>
+      <div class="chart-wrap">
+        <chart
+          class="chart"
+          type="line"
+          options="{{ chartOpts }}"
+          datasets="{{ chartData }}"
+        ></chart>
+      </div>
+      <div class="axis-legend">
+        <text class="legend-item" style="color: #ff6b6b;">● X轴</text>
+        <text class="legend-item" style="color: #4ecdc4;">● Y轴</text>
+        <text class="legend-item" style="color: #45b7d1;">● Z轴</text>
+      </div>
+    </div>
+
+    <!-- 当前体态状态 -->
+    <div class="status-section">
+      <div class="status-card {{ statusClass }}">
+        <text class="status-icon">{{ postureIcon }}</text>
+        <div class="status-info">
+          <text class="status-type">{{ postureType }}</text>
+          <text class="status-detail">{{ postureDetail }}</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 今日统计 -->
+    <div class="stats-section">
+      <div class="stat-card">
+        <text class="stat-label">久坐时长</text>
+        <text class="stat-value">{{ sedentaryMin }}<text class="stat-unit">分钟</text></text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">异常次数</text>
+        <text class="stat-value">{{ alertCount }}<text class="stat-unit">次</text></text>
+      </div>
+      <div class="stat-card">
+        <text class="stat-label">活动次数</text>
+        <text class="stat-value">{{ activityCount }}<text class="stat-unit">次</text></text>
+      </div>
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="control-section">
+      <div class="btn {{ monitorActive ? 'btn-stop' : 'btn-start' }}" onclick="toggleMonitor">
+        <text class="btn-text">{{ monitorActive ? '暂停监测' : '开始监测' }}</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import sensor from '@system.sensor'
+import vibrator from '@system.vibrator'
+import prompt from '@system.prompt'
+import PostureDetector, { POSTURE_TYPE, POSTURE_NAME } from '../../lib/posture-detector'
+
+export default {
+  private: {
+    monitorActive: false,
+    postureIcon: '😊',
+    postureType: '正常',
+    postureDetail: '等待监测数据...',
+    statusClass: 'status-normal',
+    sedentaryMin: 0,
+    alertCount: 0,
+    activityCount: 0,
+    // 图表数据
+    chartData: [
+      { strokeColor: '#ff6b6b', data: [] },
+      { strokeColor: '#4ecdc4', data: [] },
+      { strokeColor: '#45b7d1', data: [] },
+    ],
+    chartOpts: {
+      xAxis: { min: 0, max: 59, display: false, axisTick: 60 },
+      yAxis: { min: -20, max: 20, display: false, axisTick: 21 },
+      series: { lineStyle: { width: '1px' } },
+    },
+    // 内部状态
+    detector: null,
+    sampleIndex: 0,
+    maxSamples: 60,
+  },
+
+  onReady() {
+    this.detector = new PostureDetector({
+      sedentaryThreshold: 30 * 60 * 1000,
+    })
+
+    this.detector.onDetect = (result) => {
+      this._updateStatus(result)
+    }
+  },
+
+  onDestroy() {
+    this._stopMonitor()
+  },
+
+  // 返回上一页
+  back(event) {
+    if (!event || event.direction === 'right') {
+      // 返回时停止监测
+      this._stopMonitor()
+      import('@system.router').then((router) => {
+        router.back()
+      })
+    }
+  },
+
+  // 切换监测状态
+  toggleMonitor() {
+    if (this.monitorActive) {
+      this._stopMonitor()
+    } else {
+      this._startMonitor()
+    }
+  },
+
+  // 开始监测
+  _startMonitor() {
+    sensor.subscribeAccelerometer({
+      callback: (data) => {
+        this._onData(data)
+      },
+      fail: (data, code) => {
+        console.error('[Posture] subscribe fail:', code)
+        prompt.showToast({ message: '传感器订阅失败' })
+      },
+    })
+
+    this.monitorActive = true
+    prompt.showToast({ message: '监测已开启' })
+  },
+
+  // 停止监测
+  _stopMonitor() {
+    sensor.unsubscribeAccelerometer()
+    this.monitorActive = false
+  },
+
+  // 数据回调
+  _onData(data) {
+    // 更新图表
+    this._updateChart(data)
+
+    // 输入到检测器
+    const result = this.detector.input({ x: data.x, y: data.y, z: data.z })
+    if (result) {
+      this._updateStatus(result)
+    }
+  },
+
+  // 更新图表数据
+  _updateChart(data) {
+    const idx = this.sampleIndex % this.maxSamples
+
+    // 缩放数据到图表范围 (-20 to 20)
+    const scaleX = Math.round(data.x * 10)
+    const scaleY = Math.round(data.y * 10)
+    const scaleZ = Math.round(data.z * 10)
+
+    // 更新各轴数据
+    this.chartData[0].data[idx] = scaleX
+    this.chartData[1].data[idx] = scaleY
+    this.chartData[2].data[idx] = scaleZ
+
+    // 触发图表更新（创建新引用）
+    this.chartData = [
+      { ...this.chartData[0], data: [...this.chartData[0].data] },
+      { ...this.chartData[1], data: [...this.chartData[1].data] },
+      { ...this.chartData[2], data: [...this.chartData[2].data] },
+    ]
+
+    this.sampleIndex++
+  },
+
+  // 更新体态状态显示
+  _updateStatus(result) {
+    this.postureIcon = this._getIcon(result.type)
+    this.postureType = PostureDetector.getPostureName(result.type)
+    this.postureDetail = result.detail || '检测中...'
+
+    if (result.type === POSTURE_TYPE.NORMAL) {
+      this.statusClass = 'status-normal'
+      this.activityCount++
+    } else {
+      this.statusClass = 'status-warning'
+      this.alertCount++
+      vibrator.vibrate({ mode: 'long' })
+    }
+
+    this.sedentaryMin = Math.round(this.detector.getTodaySedentaryMs() / 60000)
+  },
+
+  _getIcon(type) {
+    const icons = {
+      [POSTURE_TYPE.NORMAL]: '😊',
+      [POSTURE_TYPE.SEDENTARY]: '🪑',
+      [POSTURE_TYPE.HEAD_TILT]: '📱',
+      [POSTURE_TYPE.LEG_CROSS]: '🦵',
+    }
+    return icons[type] || '❓'
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  align-items: center;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+.header {
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px 20px;
+  margin-top: 15px;
+}
+
+.back-btn {
+  font-size: 32px;
+  color: #ffffff;
+  width: 40px;
+}
+
+.title {
+  font-size: 24px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+}
+
+.status-dot.active {
+  background-color: #00d4aa;
+}
+
+.status-dot.inactive {
+  background-color: #666666;
+}
+
+/* 图表区域 */
+.chart-section {
+  width: 420px;
+  padding: 15px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  margin-top: 10px;
+}
+
+.section-title {
+  font-size: 18px;
+  color: #888888;
+  margin-bottom: 10px;
+}
+
+.chart-wrap {
+  width: 390px;
+  height: 120px;
+}
+
+.chart {
+  width: 390px;
+  height: 120px;
+}
+
+.axis-legend {
+  flex-direction: row;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.legend-item {
+  font-size: 14px;
+  margin: 0 10px;
+}
+
+/* 状态区域 */
+.status-section {
+  width: 420px;
+  margin-top: 12px;
+}
+
+.status-card {
+  flex-direction: row;
+  align-items: center;
+  padding: 15px 20px;
+  border-radius: 12px;
+}
+
+.status-normal {
+  background-color: #1a2e1a;
+  border: 1px solid #00d4aa;
+}
+
+.status-warning {
+  background-color: #2e1a1a;
+  border: 1px solid #ff6b6b;
+}
+
+.status-icon {
+  font-size: 36px;
+  margin-right: 15px;
+}
+
+.status-info {
+  flex-direction: column;
+}
+
+.status-type {
+  font-size: 22px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.status-detail {
+  font-size: 16px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+/* 统计区域 */
+.stats-section {
+  width: 420px;
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+
+.stat-card {
+  width: 130px;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stat-label {
+  font-size: 14px;
+  color: #888888;
+}
+
+.stat-value {
+  font-size: 28px;
+  color: #ffffff;
+  font-weight: bold;
+  margin-top: 6px;
+}
+
+.stat-unit {
+  font-size: 14px;
+  color: #888888;
+  font-weight: normal;
+}
+
+/* 控制按钮 */
+.control-section {
+  margin-top: 15px;
+}
+
+.btn {
+  width: 200px;
+  height: 50px;
+  border-radius: 25px;
+  justify-content: center;
+  align-items: center;
+}
+
+.btn-start {
+  background-color: #00d4aa;
+}
+
+.btn-stop {
+  background-color: #ff6b6b;
+}
+
+.btn-text {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+</style>
