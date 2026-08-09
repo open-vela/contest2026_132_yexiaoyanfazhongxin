@@ -3,7 +3,7 @@
   "team_id": "contest2026_132_yexiaoyanfazhongxin",
   "github_login": "zpf380",
   "generator": "claude-code-collector@1.2.0",
-  "updated_at": "2026-08-09T01:58:18.298Z",
+  "updated_at": "2026-08-09T02:22:19.162Z",
   "sessions": [
     {
       "session_id": "a87314ed-5f6c-412f-bab7-09d32a384bc8",
@@ -25,6 +25,18 @@
       "event_count": 33,
       "raw_event_count": 1566,
       "file_path": "logs/zpf380/2026-08-09/claude-code__42b6ae45-1842-41eb-b8a9-12310db15902.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "model": "mimo-v2.5"
+    },
+    {
+      "session_id": "78480ea3-6ff5-42e9-8fb2-96a2e36640f3",
+      "tool": "claude-code",
+      "started_at": "2026-08-09T02:18:47.208Z",
+      "last_event_at": "2026-08-09T02:22:19.152Z",
+      "event_count": 61,
+      "raw_event_count": 89,
+      "file_path": "logs/zpf380/2026-08-09/claude-code__78480ea3-6ff5-42e9-8fb2-96a2e36640f3.jsonl",
       "collection_mode": "cli",
       "health": "ok",
       "model": "mimo-v2.5"
