@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026_132_yexiaoyanfazhongxin",
+  "github_login": "RTJ018",
+  "generator": "claude-code-collector@1.2.0",
+  "updated_at": "2026-07-23T07:51:28.070Z",
+  "sessions": [
+    {
+      "session_id": "38ef1fc4-698c-46ad-aed5-5d21d9bd8e81",
+      "tool": "claude-code",
+      "started_at": "2026-07-23T07:49:55.201Z",
+      "last_event_at": "2026-07-23T07:51:28.068Z",
+      "event_count": 3,
+      "raw_event_count": 10,
+      "file_path": "logs/RTJ018/2026-07-23/claude-code__38ef1fc4-698c-46ad-aed5-5d21d9bd8e81.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "model": "mimo-v2.5"
+    }
+  ]
+}
