@@ -1,0 +1,147 @@
+<template>
+  <div class="line-container">
+    <canvas ref="lineCanvas" class="line-canvas"></canvas>
+  </div>
+</template>
+
+<script>
+/**
+ * 折线图组件
+ *
+ * 用于体态分析页趋势展示，支持：
+ * - 多数据系列
+ * - 网格线
+ * - 数据点标记
+ *
+ * @module common/components/line-chart
+ */
+
+export default {
+  props: {
+    data: { type: Array, default: [] },
+    labels: { type: Array, default: [] },
+    width: { type: Number, default: 400 },
+    height: { type: Number, default: 180 },
+    lineColor: { type: String, default: '#00C853' },
+    fillColor: { type: String, default: 'rgba(0, 200, 83, 0.2)' },
+  },
+
+  data() {
+    return {
+      ctx: null,
+    }
+  },
+
+  onReady() {
+    this._initCanvas()
+    this._draw()
+  },
+
+  watch: {
+    data() {
+      this._draw()
+    },
+  },
+
+  methods: {
+    _initCanvas() {
+      const canvas = this.$refs.lineCanvas
+      if (canvas) {
+        this.ctx = canvas.getContext('2d')
+        canvas.width = this.width
+        canvas.height = this.height
+      }
+    },
+
+    _draw() {
+      if (!this.ctx || !this.data.length) return
+      const ctx = this.ctx
+      const padding = { top: 20, bottom: 30, left: 30, right: 20 }
+      const chartWidth = this.width - padding.left - padding.right
+      const chartHeight = this.height - padding.top - padding.bottom
+
+      ctx.clearRect(0, 0, this.width, this.height)
+
+      const maxValue = Math.max(...this.data, 100)
+      const minValue = Math.min(...this.data, 0)
+      const range = maxValue - minValue || 1
+
+      // 绘制背景网格线
+      ctx.strokeStyle = '#2a2a4e'
+      ctx.lineWidth = 1
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (chartHeight * i) / 4
+        ctx.beginPath()
+        ctx.moveTo(padding.left, y)
+        ctx.lineTo(this.width - padding.right, y)
+        ctx.stroke()
+
+        // Y轴标签
+        const value = Math.round(maxValue - (range * i) / 4)
+        ctx.fillStyle = '#666666'
+        ctx.font = '10px sans-serif'
+        ctx.textAlign = 'right'
+        ctx.fillText(String(value), padding.left - 5, y + 4)
+      }
+
+      // 绘制X轴标签
+      ctx.fillStyle = '#888888'
+      ctx.font = '10px sans-serif'
+      ctx.textAlign = 'center'
+      const step = Math.ceil(this.data.length / 7)
+      for (let i = 0; i < this.data.length; i += step) {
+        const x = padding.left + (chartWidth * i) / (this.data.length - 1)
+        ctx.fillText(this.labels[i] || '', x, this.height - 10)
+      }
+
+      // 计算数据点坐标
+      const points = this.data.map((value, index) => ({
+        x: padding.left + (chartWidth * index) / (this.data.length - 1),
+        y: padding.top + chartHeight - ((value - minValue) / range) * chartHeight,
+      }))
+
+      // 绘制填充区域
+      ctx.beginPath()
+      ctx.moveTo(points[0].x, padding.top + chartHeight)
+      points.forEach(p => ctx.lineTo(p.x, p.y))
+      ctx.lineTo(points[points.length - 1].x, padding.top + chartHeight)
+      ctx.closePath()
+      ctx.fillStyle = this.fillColor
+      ctx.fill()
+
+      // 绘制折线
+      ctx.beginPath()
+      ctx.moveTo(points[0].x, points[0].y)
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y)
+      }
+      ctx.strokeStyle = this.lineColor
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      // 绘制数据点
+      points.forEach(p => {
+        ctx.beginPath()
+        ctx.arc(p.x, p.y, 4, 0, Math.PI * 2)
+        ctx.fillStyle = this.lineColor
+        ctx.fill()
+        ctx.strokeStyle = '#0a0a0a'
+        ctx.lineWidth = 2
+        ctx.stroke()
+      })
+    },
+  },
+}
+</script>
+
+<style>
+.line-container {
+  width: 400px;
+  height: 180px;
+}
+
+.line-canvas {
+  width: 400px;
+  height: 180px;
+}
+</style>
