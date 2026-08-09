@@ -1,0 +1,571 @@
+<template>
+  <div class="page">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <div class="back-btn" onclick="goBack">
+        <text class="back-icon">←</text>
+      </div>
+      <text class="title">⚙️ 设置</text>
+      <div class="placeholder"></div>
+    </div>
+
+    <!-- 设置列表 -->
+    <div class="settings-scroll">
+
+      <!-- 提醒设置 -->
+      <div class="settings-section">
+        <text class="section-title">提醒设置</text>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <text class="setting-label">提醒敏感度</text>
+            <text class="setting-desc">影响异常检测阈值</text>
+          </div>
+          <div class="setting-options">
+            <div class="option-btn {{ alertSensitivity === 'low' ? 'active' : '' }}"
+                 onclick="setAlertSensitivity('low')">
+              <text class="option-text">低</text>
+            </div>
+            <div class="option-btn {{ alertSensitivity === 'medium' ? 'active' : '' }}"
+                 onclick="setAlertSensitivity('medium')">
+              <text class="option-text">中</text>
+            </div>
+            <div class="option-btn {{ alertSensitivity === 'high' ? 'active' : '' }}"
+                 onclick="setAlertSensitivity('high')">
+              <text class="option-text">高</text>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <text class="setting-label">提醒方式</text>
+            <text class="setting-desc">振动 + 呼吸灯</text>
+          </div>
+          <div class="toggle {{ alertEnabled ? 'on' : '' }}" onclick="toggleAlert">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 采样策略 -->
+      <div class="settings-section">
+        <text class="section-title">采样策略</text>
+
+        <div class="setting-item column">
+          <div class="strategy-options">
+            <div class="strategy-btn {{ samplingStrategy === 'smart' ? 'active' : '' }}"
+                 onclick="setSamplingStrategy('smart')">
+              <text class="strategy-icon">🧠</text>
+              <div class="strategy-info">
+                <text class="strategy-label">智能自适应</text>
+                <text class="strategy-desc">根据活动状态自动调整</text>
+              </div>
+            </div>
+            <div class="strategy-btn {{ samplingStrategy === 'active' ? 'active' : '' }}"
+                 onclick="setSamplingStrategy('active')">
+              <text class="strategy-icon">⚡</text>
+              <div class="strategy-info">
+                <text class="strategy-label">始终高频</text>
+                <text class="strategy-desc">50Hz 持续采样</text>
+              </div>
+            </div>
+            <div class="strategy-btn {{ samplingStrategy === 'power' ? 'active' : '' }}"
+                 onclick="setSamplingStrategy('power')">
+              <text class="strategy-icon">🔋</text>
+              <div class="strategy-info">
+                <text class="strategy-label">省电模式</text>
+                <text class="strategy-desc">10Hz 低功耗采样</text>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 数据生命周期 -->
+      <div class="settings-section">
+        <text class="section-title">数据生命周期</text>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <text class="setting-label">L1 数据保留</text>
+            <text class="setting-desc">普通统计数据</text>
+          </div>
+          <div class="stepper">
+            <div class="stepper-btn" onclick="adjustL1Retention(-7)">
+              <text class="stepper-text">-</text>
+            </div>
+            <text class="stepper-value">{{ l1RetentionDays }}天</text>
+            <div class="stepper-btn" onclick="adjustL1Retention(7)">
+              <text class="stepper-text">+</text>
+            </div>
+          </div>
+        </div>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <text class="setting-label">L2 数据保留</text>
+            <text class="setting-desc">生理趋势数据</text>
+          </div>
+          <div class="stepper">
+            <div class="stepper-btn" onclick="adjustL2Retention(-1)">
+              <text class="stepper-text">-</text>
+            </div>
+            <text class="stepper-value">{{ l2RetentionDays }}天</text>
+            <div class="stepper-btn" onclick="adjustL2Retention(1)">
+              <text class="stepper-text">+</text>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 安全设置 -->
+      <div class="settings-section">
+        <text class="section-title">安全设置</text>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <text class="setting-label">密钥重置</text>
+            <text class="setting-desc warning">⚠️ 历史 L3 数据将永久丢失</text>
+          </div>
+          <div class="danger-btn" onclick="resetKeys">
+            <text class="danger-btn-text">重置</text>
+          </div>
+        </div>
+      </div>
+
+      <!-- 显示设置 -->
+      <div class="settings-section">
+        <text class="section-title">显示设置</text>
+
+        <div class="setting-item">
+          <div class="setting-info">
+            <text class="setting-label">高对比度模式</text>
+            <text class="setting-desc">增强可读性</text>
+          </div>
+          <div class="toggle {{ highContrast ? 'on' : '' }}" onclick="toggleHighContrast">
+            <div class="toggle-thumb"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 关于 -->
+      <div class="settings-section">
+        <text class="section-title">关于</text>
+        <div class="about-info">
+          <text class="about-text">体态安全卫士 v1.0.0</text>
+          <text class="about-text">团队: 132 叶小研发中心</text>
+          <text class="about-text">隐私优先 · 端侧AI · 纯离线运行</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 设置页
+ *
+ * 功能：
+ * - 提醒敏感度设置（低/中/高）
+ * - 采样策略选择（智能/高频/省电）
+ * - 数据生命周期配置
+ * - 密钥重置
+ * - 高对比度模式
+ *
+ * @module pages/settings
+ */
+
+import router from '@system.router'
+import prompt from '@system.prompt'
+
+export default {
+  private: {
+    // 提醒设置
+    alertSensitivity: 'medium',
+    alertEnabled: true,
+
+    // 采样策略
+    samplingStrategy: 'smart',
+
+    // 数据生命周期
+    l1RetentionDays: 30,
+    l2RetentionDays: 7,
+
+    // 显示设置
+    highContrast: false,
+  },
+
+  onReady() {
+    console.log('[Settings] onReady')
+    this._loadSettings()
+  },
+
+  /**
+   * 加载设置
+   * @private
+   */
+  _loadSettings() {
+    // TODO: 从 secure-storage L1 级加密存储读取配置
+    console.log('[Settings] Loading settings...')
+  },
+
+  /**
+   * 保存设置
+   * @private
+   */
+  _saveSettings() {
+    const settings = {
+      alertSensitivity: this.alertSensitivity,
+      alertEnabled: this.alertEnabled,
+      samplingStrategy: this.samplingStrategy,
+      l1RetentionDays: this.l1RetentionDays,
+      l2RetentionDays: this.l2RetentionDays,
+      highContrast: this.highContrast,
+    }
+
+    // TODO: 保存到 secure-storage L1 级加密存储
+    console.log('[Settings] Saving settings:', settings)
+    prompt.showToast({ message: '设置已保存' })
+  },
+
+  /**
+   * 设置提醒敏感度
+   * @param {string} level - low/medium/high
+   */
+  setAlertSensitivity(level) {
+    this.alertSensitivity = level
+    this._saveSettings()
+
+    // 影响阈值倍数
+    const thresholdMultiplier = { low: 0.8, medium: 1.0, high: 1.2 }
+    console.log(`[Settings] Alert sensitivity: ${level}, multiplier: ${thresholdMultiplier[level]}`)
+  },
+
+  /**
+   * 切换提醒开关
+   */
+  toggleAlert() {
+    this.alertEnabled = !this.alertEnabled
+    this._saveSettings()
+  },
+
+  /**
+   * 设置采样策略
+   * @param {string} strategy - smart/active/power
+   */
+  setSamplingStrategy(strategy) {
+    this.samplingStrategy = strategy
+    this._saveSettings()
+
+    // 影响实际采样率
+    const sampleRates = { smart: 50, active: 50, power: 10 }
+    console.log(`[Settings] Sampling strategy: ${strategy}, rate: ${sampleRates[strategy]}Hz`)
+  },
+
+  /**
+   * 调整 L1 保留天数
+   * @param {number} delta - 变化量
+   */
+  adjustL1Retention(delta) {
+    const newDays = this.l1RetentionDays + delta
+    if (newDays >= 7 && newDays <= 90) {
+      this.l1RetentionDays = newDays
+      this._saveSettings()
+    }
+  },
+
+  /**
+   * 调整 L2 保留天数
+   * @param {number} delta - 变化量
+   */
+  adjustL2Retention(delta) {
+    const newDays = this.l2RetentionDays + delta
+    if (newDays >= 1 && newDays <= 30) {
+      this.l2RetentionDays = newDays
+      this._saveSettings()
+    }
+  },
+
+  /**
+   * 重置密钥
+   */
+  resetKeys() {
+    prompt.showDialog({
+      title: '⚠️ 警告',
+      message: '重置密钥将导致所有 L3 数据永久丢失，无法恢复。确定继续？',
+      buttons: [
+        { text: '取消', color: '#888888' },
+        { text: '确定重置', color: '#FF1744' },
+      ],
+    }).then(result => {
+      if (result.index === 1) {
+        // TODO: 执行密钥重置
+        console.log('[Settings] Keys reset confirmed')
+        prompt.showToast({ message: '密钥已重置，L3 数据已清除' })
+      }
+    })
+  },
+
+  /**
+   * 切换高对比度模式
+   */
+  toggleHighContrast() {
+    this.highContrast = !this.highContrast
+    this._saveSettings()
+  },
+
+  /**
+   * 返回上一页
+   */
+  goBack() {
+    router.back()
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+/* 顶部导航 */
+.header {
+  width: 100%;
+  height: 50px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  background-color: #1a1a2e;
+}
+
+.back-btn {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.title {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.placeholder {
+  width: 30px;
+}
+
+/* 设置滚动区 */
+.settings-scroll {
+  flex: 1;
+  flex-direction: column;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+/* 设置区块 */
+.settings-section {
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-size: 13px;
+  color: #666666;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+/* 设置项 */
+.setting-item {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom-width: 1px;
+  border-bottom-color: #2a2a4e;
+}
+
+.setting-item:last-child {
+  border-bottom-width: 0;
+}
+
+.setting-item.column {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setting-info {
+  flex: 1;
+  flex-direction: column;
+}
+
+.setting-label {
+  font-size: 15px;
+  color: #ffffff;
+}
+
+.setting-desc {
+  font-size: 12px;
+  color: #666666;
+  margin-top: 2px;
+}
+
+.setting-desc.warning {
+  color: #FFD600;
+}
+
+/* 选项按钮组 */
+.setting-options {
+  flex-direction: row;
+}
+
+.option-btn {
+  width: 40px;
+  height: 32px;
+  background-color: #2a2a4e;
+  border-radius: 6px;
+  justify-content: center;
+  align-items: center;
+  margin-left: 6px;
+}
+
+.option-btn.active {
+  background-color: #2979FF;
+}
+
+.option-text {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+/* 开关 */
+.toggle {
+  width: 48px;
+  height: 28px;
+  background-color: #3a3a5e;
+  border-radius: 14px;
+  justify-content: center;
+  padding: 2px;
+}
+
+.toggle.on {
+  background-color: #00C853;
+  align-items: flex-end;
+}
+
+.toggle.off {
+  background-color: #3a3a5e;
+  align-items: flex-start;
+}
+
+.toggle-thumb {
+  width: 24px;
+  height: 24px;
+  background-color: #ffffff;
+  border-radius: 12px;
+}
+
+/* 策略选项 */
+.strategy-options {
+  flex-direction: column;
+}
+
+.strategy-btn {
+  flex-direction: row;
+  align-items: center;
+  padding: 12px;
+  background-color: #2a2a4e;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.strategy-btn.active {
+  background-color: #2979FF;
+}
+
+.strategy-icon {
+  font-size: 20px;
+  margin-right: 12px;
+}
+
+.strategy-info {
+  flex: 1;
+  flex-direction: column;
+}
+
+.strategy-label {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.strategy-desc {
+  font-size: 11px;
+  color: #888888;
+  margin-top: 2px;
+}
+
+/* 步进器 */
+.stepper {
+  flex-direction: row;
+  align-items: center;
+}
+
+.stepper-btn {
+  width: 32px;
+  height: 32px;
+  background-color: #2a2a4e;
+  border-radius: 16px;
+  justify-content: center;
+  align-items: center;
+}
+
+.stepper-text {
+  font-size: 18px;
+  color: #ffffff;
+}
+
+.stepper-value {
+  font-size: 14px;
+  color: #ffffff;
+  width: 50px;
+  text-align: center;
+}
+
+/* 危险按钮 */
+.danger-btn {
+  padding: 8px 16px;
+  background-color: rgba(255, 23, 68, 0.2);
+  border-radius: 6px;
+}
+
+.danger-btn-text {
+  font-size: 13px;
+  color: #FF1744;
+}
+
+/* 关于信息 */
+.about-info {
+  flex-direction: column;
+  padding: 10px 0;
+}
+
+.about-text {
+  font-size: 13px;
+  color: #888888;
+  margin-bottom: 4px;
+}
+</style>

@@ -1,0 +1,501 @@
+<template>
+  <div class="page">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <div class="back-btn" onclick="goBack">
+        <text class="back-icon">←</text>
+      </div>
+      <text class="title">🛡️ 隐私中心</text>
+      <div class="placeholder"></div>
+    </div>
+
+    <!-- 隐私健康评分 -->
+    <div class="score-card">
+      <text class="score-value {{ privacyScoreClass }}">{{ privacyScore }}</text>
+      <text class="score-label">隐私健康评分</text>
+      <div class="score-bar">
+        <div class="score-bar-fill" style="width: {{ privacyScore }}%"></div>
+      </div>
+      <div class="score-details">
+        <div class="score-detail-item">
+          <text class="detail-label">脱敏率</text>
+          <text class="detail-value">{{ desensitizationRate }}%</text>
+        </div>
+        <div class="score-detail-item">
+          <text class="detail-label">加密覆盖</text>
+          <text class="detail-value">{{ encryptionCoverage }}%</text>
+        </div>
+        <div class="score-detail-item">
+          <text class="detail-label">过期合规</text>
+          <text class="detail-value">{{ expirationCompliance }}%</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据转化可视化 -->
+    <div class="transform-card">
+      <text class="card-title">数据安全转化</text>
+      <div class="transform-flow">
+        <!-- 原始数据 -->
+        <div class="transform-step">
+          <div class="step-icon raw">
+            <text class="step-emoji">🔓</text>
+          </div>
+          <text class="step-label">原始数据</text>
+          <text class="step-example">心率: 72bpm</text>
+        </div>
+
+        <!-- 箭头 -->
+        <div class="transform-arrow">
+          <text class="arrow-text">→</text>
+          <text class="arrow-label">脱敏</text>
+        </div>
+
+        <!-- 脱敏数据 -->
+        <div class="transform-step">
+          <div class="step-icon desensitized">
+            <text class="step-emoji">🛡️</text>
+          </div>
+          <text class="step-label">脱敏数据</text>
+          <text class="step-example">心率: 70-75</text>
+        </div>
+
+        <!-- 箭头 -->
+        <div class="transform-arrow">
+          <text class="arrow-text">→</text>
+          <text class="arrow-label">加密</text>
+        </div>
+
+        <!-- 加密数据 -->
+        <div class="transform-step">
+          <div class="step-icon encrypted">
+            <text class="step-emoji">🔒</text>
+          </div>
+          <text class="step-label">加密存储</text>
+          <text class="step-example">AES-256-GCM</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 数据生命周期看板 -->
+    <div class="lifecycle-card">
+      <text class="card-title">数据生命周期</text>
+      <div class="lifecycle-grid">
+        <div class="lifecycle-item hot">
+          <text class="lifecycle-count">{{ hotDataCount }}</text>
+          <text class="lifecycle-label">热数据</text>
+          <text class="lifecycle-age">24h内</text>
+        </div>
+        <div class="lifecycle-item warm">
+          <text class="lifecycle-count">{{ warmDataCount }}</text>
+          <text class="lifecycle-label">温数据</text>
+          <text class="lifecycle-age">1-7天</text>
+        </div>
+        <div class="lifecycle-item cold">
+          <text class="lifecycle-count">{{ coldDataCount }}</text>
+          <text class="lifecycle-label">冷数据</text>
+          <text class="lifecycle-age">7-30天</text>
+        </div>
+        <div class="lifecycle-item destroyed">
+          <text class="lifecycle-count">{{ destroyedCount }}</text>
+          <text class="lifecycle-label">已销毁</text>
+          <text class="lifecycle-age">30天+</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 审计日志时间线 -->
+    <div class="audit-card">
+      <div class="card-header">
+        <text class="card-title">安全审计日志</text>
+        <div class="view-all-btn" onclick="viewAllLogs">
+          <text class="view-all-text">全部 →</text>
+        </div>
+      </div>
+      <timeline items="{{ recentLogs }}"></timeline>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 隐私中心页
+ *
+ * 功能：
+ * - 隐私健康评分（基于脱敏率、加密覆盖率、过期合规率）
+ * - 数据安全转化可视化（原始→脱敏→加密）
+ * - 数据生命周期看板
+ * - 审计日志时间线
+ *
+ * @module pages/privacy-center
+ */
+
+import router from '@system.router'
+
+export default {
+  private: {
+    // 隐私评分
+    privacyScore: 92,
+    privacyScoreClass: 'score-excellent',
+    desensitizationRate: 98,
+    encryptionCoverage: 100,
+    expirationCompliance: 95,
+
+    // 生命周期统计
+    hotDataCount: 12,
+    warmDataCount: 45,
+    coldDataCount: 23,
+    destroyedCount: 128,
+
+    // 审计日志
+    recentLogs: [
+      {
+        time: '14:32',
+        tag: '数据写入',
+        type: 'write',
+        description: '传感器数据脱敏后加密写入 L1',
+      },
+      {
+        time: '14:30',
+        tag: '脱敏处理',
+        type: 'encrypt',
+        description: '心率数据区间化处理 (72→70-75)',
+      },
+      {
+        time: '14:28',
+        tag: '加密存储',
+        type: 'encrypt',
+        description: '运动特征 AES-256-GCM 加密',
+      },
+      {
+        time: '14:25',
+        tag: '数据销毁',
+        type: 'delete',
+        description: 'L3 原始波形 24h 过期销毁',
+      },
+      {
+        time: '14:20',
+        tag: '密钥派生',
+        type: 'lifecycle',
+        description: 'L1/L2 密钥 PBKDF2 派生完成',
+      },
+    ],
+  },
+
+  onReady() {
+    console.log('[PrivacyCenter] onReady')
+    this._loadData()
+  },
+
+  /**
+   * 加载数据
+   * @private
+   */
+  _loadData() {
+    // TODO: 从 AuditLogger 和 LifecycleManager 获取真实数据
+    console.log('[PrivacyCenter] Loading data...')
+
+    // 更新隐私评分等级
+    if (this.privacyScore >= 90) {
+      this.privacyScoreClass = 'score-excellent'
+    } else if (this.privacyScore >= 70) {
+      this.privacyScoreClass = 'score-good'
+    } else {
+      this.privacyScoreClass = 'score-warn'
+    }
+  },
+
+  /**
+   * 查看全部日志
+   */
+  viewAllLogs() {
+    // TODO: 跳转到完整日志页面
+    console.log('[PrivacyCenter] View all logs')
+  },
+
+  /**
+   * 返回上一页
+   */
+  goBack() {
+    router.back()
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+  overflow-y: auto;
+}
+
+/* 顶部导航 */
+.header {
+  width: 100%;
+  height: 50px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  background-color: #1a1a2e;
+  position: sticky;
+  top: 0;
+}
+
+.back-btn {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.title {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.placeholder {
+  width: 30px;
+}
+
+/* 隐私评分卡片 */
+.score-card {
+  width: 420px;
+  padding: 20px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  margin: 10px auto;
+  align-items: center;
+}
+
+.score-value {
+  font-size: 48px;
+  font-weight: bold;
+}
+
+.score-excellent {
+  color: #00C853;
+}
+
+.score-good {
+  color: #2979FF;
+}
+
+.score-warn {
+  color: #FFD600;
+}
+
+.score-label {
+  font-size: 14px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+.score-bar {
+  width: 300px;
+  height: 8px;
+  background-color: #2a2a4e;
+  border-radius: 4px;
+  margin-top: 12px;
+}
+
+.score-bar-fill {
+  height: 100%;
+  background-color: #00C853;
+  border-radius: 4px;
+}
+
+.score-details {
+  flex-direction: row;
+  justify-content: space-around;
+  width: 100%;
+  margin-top: 15px;
+}
+
+.score-detail-item {
+  flex-direction: column;
+  align-items: center;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: #666666;
+}
+
+.detail-value {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+  margin-top: 4px;
+}
+
+/* 数据转化卡片 */
+.transform-card {
+  width: 420px;
+  padding: 15px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  margin: 10px auto;
+}
+
+.card-title {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 12px;
+}
+
+.transform-flow {
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.transform-step {
+  flex-direction: column;
+  align-items: center;
+  width: 100px;
+}
+
+.step-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 25px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.step-icon.raw {
+  background-color: rgba(255, 23, 68, 0.2);
+}
+
+.step-icon.desensitized {
+  background-color: rgba(255, 214, 0, 0.2);
+}
+
+.step-icon.encrypted {
+  background-color: rgba(0, 200, 83, 0.2);
+}
+
+.step-emoji {
+  font-size: 24px;
+}
+
+.step-label {
+  font-size: 12px;
+  color: #ffffff;
+}
+
+.step-example {
+  font-size: 10px;
+  color: #666666;
+  margin-top: 2px;
+}
+
+.transform-arrow {
+  flex-direction: column;
+  align-items: center;
+}
+
+.arrow-text {
+  font-size: 20px;
+  color: #2979FF;
+}
+
+.arrow-label {
+  font-size: 10px;
+  color: #666666;
+}
+
+/* 生命周期卡片 */
+.lifecycle-card {
+  width: 420px;
+  padding: 15px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  margin: 10px auto;
+}
+
+.lifecycle-grid {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.lifecycle-item {
+  flex-direction: column;
+  align-items: center;
+  width: 90px;
+  padding: 10px 0;
+  border-radius: 8px;
+}
+
+.lifecycle-item.hot {
+  background-color: rgba(255, 23, 68, 0.15);
+}
+
+.lifecycle-item.warm {
+  background-color: rgba(255, 214, 0, 0.15);
+}
+
+.lifecycle-item.cold {
+  background-color: rgba(41, 121, 255, 0.15);
+}
+
+.lifecycle-item.destroyed {
+  background-color: rgba(100, 100, 100, 0.15);
+}
+
+.lifecycle-count {
+  font-size: 22px;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.lifecycle-label {
+  font-size: 12px;
+  color: #aaaaaa;
+  margin-top: 4px;
+}
+
+.lifecycle-age {
+  font-size: 10px;
+  color: #666666;
+  margin-top: 2px;
+}
+
+/* 审计日志卡片 */
+.audit-card {
+  width: 420px;
+  padding: 15px;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  margin: 10px auto 20px;
+}
+
+.card-header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.view-all-btn {
+  padding: 4px 10px;
+  background-color: #2979FF;
+  border-radius: 10px;
+}
+
+.view-all-text {
+  font-size: 11px;
+  color: #ffffff;
+}
+</style>

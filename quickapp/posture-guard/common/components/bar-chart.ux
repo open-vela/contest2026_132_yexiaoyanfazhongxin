@@ -1,0 +1,129 @@
+<template>
+  <div class="bar-container">
+    <canvas ref="barCanvas" class="bar-canvas"></canvas>
+  </div>
+</template>
+
+<script>
+/**
+ * 柱状图组件
+ *
+ * 用于方形表盘异常统计展示，支持：
+ * - 多类型柱状图
+ * - 标签显示
+ * - 动画过渡
+ *
+ * @module common/components/bar-chart
+ */
+
+export default {
+  props: {
+    data: { type: Array, default: [] },
+    width: { type: Number, default: 400 },
+    height: { type: Number, default: 150 },
+    barWidth: { type: Number, default: 50 },
+  },
+
+  data() {
+    return {
+      ctx: null,
+    }
+  },
+
+  onReady() {
+    this._initCanvas()
+    this._draw()
+  },
+
+  watch: {
+    data() {
+      this._draw()
+    },
+  },
+
+  methods: {
+    _initCanvas() {
+      const canvas = this.$refs.barCanvas
+      if (canvas) {
+        this.ctx = canvas.getContext('2d')
+        canvas.width = this.width
+        canvas.height = this.height
+      }
+    },
+
+    _draw() {
+      if (!this.ctx || !this.data.length) return
+      const ctx = this.ctx
+      const padding = { top: 20, bottom: 30, left: 20, right: 20 }
+      const chartWidth = this.width - padding.left - padding.right
+      const chartHeight = this.height - padding.top - padding.bottom
+
+      ctx.clearRect(0, 0, this.width, this.height)
+
+      const maxValue = Math.max(...this.data.map(d => d.value), 1)
+      const barSpacing = chartWidth / this.data.length
+      const actualBarWidth = Math.min(this.barWidth, barSpacing * 0.6)
+
+      // 绘制背景网格线
+      ctx.strokeStyle = '#2a2a4e'
+      ctx.lineWidth = 1
+      for (let i = 0; i <= 4; i++) {
+        const y = padding.top + (chartHeight * i) / 4
+        ctx.beginPath()
+        ctx.moveTo(padding.left, y)
+        ctx.lineTo(this.width - padding.right, y)
+        ctx.stroke()
+      }
+
+      // 绘制柱状图
+      this.data.forEach((item, index) => {
+        const x = padding.left + barSpacing * index + (barSpacing - actualBarWidth) / 2
+        const barHeight = (item.value / maxValue) * chartHeight
+        const y = padding.top + chartHeight - barHeight
+
+        // 绘制柱子
+        ctx.fillStyle = item.color || '#2979FF'
+        this._roundRect(ctx, x, y, actualBarWidth, barHeight, 4)
+
+        // 绘制数值
+        ctx.fillStyle = '#ffffff'
+        ctx.font = '12px sans-serif'
+        ctx.textAlign = 'center'
+        ctx.fillText(String(item.value), x + actualBarWidth / 2, y - 5)
+
+        // 绘制标签
+        ctx.fillStyle = '#888888'
+        ctx.font = '11px sans-serif'
+        ctx.fillText(item.label || '', x + actualBarWidth / 2, this.height - 10)
+      })
+    },
+
+    _roundRect(ctx, x, y, w, h, r) {
+      ctx.beginPath()
+      ctx.moveTo(x + r, y)
+      ctx.lineTo(x + w - r, y)
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r)
+      ctx.lineTo(x + w, y + h - r)
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+      ctx.lineTo(x + r, y + h)
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r)
+      ctx.lineTo(x, y + r)
+      ctx.quadraticCurveTo(x, y, x + r, y)
+      ctx.closePath()
+      ctx.fill()
+    },
+  },
+}
+</script>
+
+<style>
+.bar-container {
+  width: 400px;
+  height: 150px;
+}
+
+.bar-canvas {
+  width: 400px;
+  height: 150px;
+}
+</style>

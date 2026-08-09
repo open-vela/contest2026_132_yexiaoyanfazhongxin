@@ -1,0 +1,307 @@
+<template>
+  <div class="page">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <div class="back-btn" onclick="goBack">
+        <text class="back-icon">←</text>
+      </div>
+      <text class="title">体态分析</text>
+      <div class="time-range" onclick="toggleTimeRange">
+        <text class="time-range-text">{{ timeRangeLabel }}</text>
+      </div>
+    </div>
+
+    <!-- 7日趋势折线图 -->
+    <div class="chart-card">
+      <div class="card-header">
+        <text class="card-title">健康评分趋势</text>
+        <text class="card-subtitle">{{ timeRangeLabel }}</text>
+      </div>
+      <line-chart
+        data="{{ trendData }}"
+        labels="{{ trendLabels }}"
+        width="420"
+        height="160"
+        lineColor="#00C853"
+      ></line-chart>
+    </div>
+
+    <!-- 异常类型饼图 -->
+    <div class="chart-card">
+      <div class="card-header">
+        <text class="card-title">异常类型分布</text>
+      </div>
+      <pie-chart data="{{ anomalyDistribution }}" size="140"></pie-chart>
+    </div>
+
+    <!-- 今日时间线 -->
+    <div class="timeline-card">
+      <div class="card-header">
+        <text class="card-title">今日体态时间线</text>
+      </div>
+      <div class="timeline-scroll">
+        <div class="timeline-item" for="{{ timelineData }}">
+          <div class="timeline-time">{{ $item.time }}</div>
+          <div class="timeline-bar {{ $item.type }}" style="width: {{ $item.width }}px"></div>
+          <div class="timeline-label">{{ $item.label }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 改善建议 -->
+    <div class="advice-card">
+      <div class="card-header">
+        <text class="card-icon">💡</text>
+        <text class="card-title">改善建议</text>
+      </div>
+      <div class="advice-list">
+        <div class="advice-item" for="{{ adviceList }}">
+          <text class="advice-bullet">•</text>
+          <text class="advice-text">{{ $item }}</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 体态分析页
+ *
+ * 功能：
+ * - 7日趋势折线图
+ * - 异常类型饼图
+ * - 今日时间线
+ * - 改善建议
+ * - 左右滑动切换时间范围
+ *
+ * @module pages/posture-analysis
+ */
+
+import router from '@system.router'
+
+export default {
+  private: {
+    // 时间范围
+    timeRange: 'week',
+    timeRangeLabel: '近7天',
+
+    // 趋势数据
+    trendData: [65, 72, 68, 75, 80, 78, 82],
+    trendLabels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+
+    // 异常分布
+    anomalyDistribution: [
+      { label: '久坐', value: 35, color: '#2979FF' },
+      { label: '低头', value: 45, color: '#FF9800' },
+      { label: '跷腿', value: 20, color: '#9C27B0' },
+    ],
+
+    // 时间线数据
+    timelineData: [
+      { time: '09:00', type: 'normal', width: 120, label: '正常坐姿' },
+      { time: '10:30', type: 'sedentary', width: 180, label: '久坐 1.5h' },
+      { time: '12:00', type: 'normal', width: 60, label: '午休' },
+      { time: '14:00', type: 'forward', width: 90, label: '低头工作' },
+      { time: '15:30', type: 'normal', width: 45, label: '活动休息' },
+      { time: '16:00', type: 'cross', width: 120, label: '跷二郎腿' },
+    ],
+
+    // 改善建议
+    adviceList: [
+      '今日低头次数较多，建议每小时活动颈部',
+      '久坐时长超过2小时，建议定时站立休息',
+      '跷腿习惯需注意，建议保持双脚平放',
+    ],
+
+    // 滑动控制
+    touchStartX: 0,
+  },
+
+  onReady() {
+    console.log('[PostureAnalysis] onReady')
+    this._loadData()
+  },
+
+  /**
+   * 加载数据
+   * @private
+   */
+  _loadData() {
+    // TODO: 从 secure-storage 读取脱敏后的统计数据
+    console.log('[PostureAnalysis] Loading data...')
+  },
+
+  /**
+   * 切换时间范围
+   */
+  toggleTimeRange() {
+    const ranges = ['today', 'week', 'month']
+    const labels = { today: '今日', week: '近7天', month: '近30天' }
+    const currentIndex = ranges.indexOf(this.timeRange)
+    const nextIndex = (currentIndex + 1) % ranges.length
+
+    this.timeRange = ranges[nextIndex]
+    this.timeRangeLabel = labels[this.timeRange]
+
+    this._loadData()
+  },
+
+  /**
+   * 返回上一页
+   */
+  goBack() {
+    router.back()
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+/* 顶部导航 */
+.header {
+  width: 100%;
+  height: 50px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  background-color: #1a1a2e;
+}
+
+.back-btn {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.title {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.time-range {
+  padding: 6px 12px;
+  background-color: #2979FF;
+  border-radius: 12px;
+}
+
+.time-range-text {
+  font-size: 12px;
+  color: #ffffff;
+}
+
+/* 卡片通用 */
+.chart-card,
+.timeline-card,
+.advice-card {
+  width: 420px;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  margin: 8px auto;
+}
+
+.card-header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.card-icon {
+  font-size: 16px;
+  margin-right: 6px;
+}
+
+.card-title {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.card-subtitle {
+  font-size: 12px;
+  color: #666666;
+  margin-left: 8px;
+}
+
+/* 时间线 */
+.timeline-scroll {
+  flex-direction: column;
+  max-height: 120px;
+}
+
+.timeline-item {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.timeline-time {
+  font-size: 11px;
+  color: #666666;
+  width: 45px;
+}
+
+.timeline-bar {
+  height: 16px;
+  border-radius: 4px;
+  margin: 0 8px;
+}
+
+.timeline-bar.normal {
+  background-color: #00C853;
+}
+
+.timeline-bar.sedentary {
+  background-color: #2979FF;
+}
+
+.timeline-bar.forward {
+  background-color: #FF9800;
+}
+
+.timeline-bar.cross {
+  background-color: #9C27B0;
+}
+
+.timeline-label {
+  font-size: 11px;
+  color: #aaaaaa;
+}
+
+/* 改善建议 */
+.advice-list {
+  flex-direction: column;
+}
+
+.advice-item {
+  flex-direction: row;
+  margin-bottom: 8px;
+}
+
+.advice-bullet {
+  font-size: 14px;
+  color: #FFD600;
+  width: 16px;
+}
+
+.advice-text {
+  font-size: 13px;
+  color: #ffffff;
+  flex: 1;
+}
+</style>
