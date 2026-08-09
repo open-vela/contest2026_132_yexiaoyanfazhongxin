@@ -1,0 +1,720 @@
+<template>
+  <!-- 圆形表盘布局 -->
+  <div class="page {{ screenShape === 'round' ? 'round' : 'square' }}" if="{{ screenShape === 'round' }}">
+    <!-- 系统状态指示器 -->
+    <div class="system-status" onclick="showSystemStatus">
+      <div class="status-dot {{ systemStatus }}"></div>
+      <text class="status-text">{{ systemStatusText }}</text>
+    </div>
+    <div class="round-content">
+      <!-- 中心：健康评分环形图 -->
+      <div class="round-center">
+        <ring-chart value="{{ healthScore }}" label="健康评分" size="220"></ring-chart>
+      </div>
+
+      <!-- 底部：隐私状态 -->
+      <div class="round-bottom">
+        <div class="privacy-indicator" onclick="goToPrivacyCenter">
+          <shield-icon status="{{ privacyStatus }}" size="40"></shield-icon>
+          <text class="privacy-text">隐私保护: {{ privacyText }}</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 下拉刷新提示 -->
+    <div class="pull-hint">
+      <text class="pull-hint-text">下滑查看详细</text>
+    </div>
+  </div>
+
+  <!-- 方形表盘布局 -->
+  <div class="page square" else>
+    <!-- 系统状态指示器 -->
+    <div class="system-status-square" onclick="showSystemStatus">
+      <div class="status-dot {{ systemStatus }}"></div>
+      <text class="status-text">{{ systemStatusText }}</text>
+      <div class="status-details-mini">
+        <text class="detail-mini">传感器:{{ sensorStatus }}</text>
+        <text class="detail-mini">AI:{{ engineStatus }}</text>
+        <text class="detail-mini">存储:{{ storageStatus }}</text>
+      </div>
+    </div>
+
+    <!-- 顶部：健康评分 -->
+    <div class="square-header">
+      <div class="score-section">
+        <text class="score-value {{ healthScoreClass }}">{{ healthScore }}</text>
+        <text class="score-label">健康评分</text>
+      </div>
+      <div class="privacy-badge" onclick="goToPrivacyCenter">
+        <shield-icon status="{{ privacyStatus }}" size="50"></shield-icon>
+      </div>
+    </div>
+
+    <!-- 中部：今日异常统计 -->
+    <div class="chart-section">
+      <text class="section-title">今日体态异常</text>
+      <bar-chart data="{{ todayAnomalies }}" width="420" height="140"></bar-chart>
+    </div>
+
+    <!-- 底部：加密状态卡片 -->
+    <div class="status-card">
+      <div class="status-row">
+        <text class="status-icon">🔐</text>
+        <div class="status-info">
+          <text class="status-title">数据加密状态</text>
+          <text class="status-value">{{ encryptionStatus }}</text>
+        </div>
+      </div>
+      <div class="status-details">
+        <div class="detail-item">
+          <text class="detail-label">已加密文件</text>
+          <text class="detail-value">{{ encryptedFiles }} 个</text>
+        </div>
+        <div class="detail-item">
+          <text class="detail-label">存储空间</text>
+          <text class="detail-value">{{ storageUsed }}</text>
+        </div>
+      </div>
+      <div class="status-actions">
+        <div class="action-btn" onclick="goToPrivacyCenter">
+          <text class="action-text">查看详情 →</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 实时体态状态 -->
+    <div class="current-posture">
+      <div class="posture-icon-wrapper">
+        <text class="posture-emoji">{{ currentPostureIcon }}</text>
+      </div>
+      <div class="posture-info">
+        <text class="posture-type">{{ currentPostureType }}</text>
+        <text class="posture-confidence">置信度 {{ currentConfidence }}%</text>
+      </div>
+      <div class="posture-duration">
+        <text class="duration-value">{{ currentDuration }}</text>
+        <text class="duration-unit">秒</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 首页仪表盘 - 圆形/方形自适应布局
+ *
+ * 功能：
+ * - 圆形表盘：中心健康评分环形图 + 隐私状态
+ * - 方形表盘：健康评分 + 异常柱状图 + 加密状态
+ * - 实时更新体态状态
+ * - 数据来自 secure-storage 的 L1 脱敏统计
+ *
+ * @module pages/index
+ */
+
+import router from '@system.router'
+import prompt from '@system.prompt'
+import { PostureEngine } from '../../core/posture-engine'
+import { getPostureName, getPostureIcon, POSTURE_TYPE } from '../../common/constants/postures'
+import { SecureStorage } from '../../storage/secure-storage'
+import { CryptoManager } from '../../privacy/crypto-manager'
+import { eventBus } from '../../common/event-bus'
+
+export default {
+  private: {
+    // 屏幕形状
+    screenShape: 'round',
+
+    // 系统状态
+    systemStatus: 'ok',
+    systemStatusText: '系统正常',
+    sensorStatus: '✓',
+    engineStatus: '✓',
+    storageStatus: '✓',
+
+    // 健康评分
+    healthScore: 72,
+    healthScoreClass: 'score-good',
+
+    // 隐私状态
+    privacyStatus: 'locked',
+    privacyText: '已启用',
+
+    // 今日异常统计
+    todayAnomalies: [
+      { label: '久坐', value: 3, color: '#2979FF' },
+      { label: '低头', value: 5, color: '#FF9800' },
+      { label: '跷腿', value: 2, color: '#9C27B0' },
+    ],
+
+    // 加密状态
+    encryptionStatus: 'AES-256-GCM',
+    encryptedFiles: 45,
+    storageUsed: '2.3 MB',
+
+    // 当前体态
+    currentPostureIcon: '⏳',
+    currentPostureType: '等待数据...',
+    currentConfidence: 0,
+    currentDuration: 0,
+
+    // 模式
+    mockMode: true,
+    monitorRunning: false,
+
+    // 引擎实例
+    engine: null,
+    secureStorage: null,
+
+    // 定时器
+    refreshTimer: null,
+  },
+
+  onReady() {
+    console.log('[Index] onReady')
+    this._detectScreenShape()
+    this._initModules()
+    this._loadDashboardData()
+    this._startAutoRefresh()
+  },
+
+  onDestroy() {
+    console.log('[Index] onDestroy')
+    this._stopMonitor()
+    if (this.refreshTimer) clearInterval(this.refreshTimer)
+  },
+
+  /**
+   * 检测屏幕形状
+   * @private
+   */
+  _detectScreenShape() {
+    // OpenVela: @system.device
+    // 模拟实现：根据屏幕尺寸判断
+    const screenWidth = 480
+    const screenHeight = 480
+    this.screenShape = screenWidth === screenHeight ? 'round' : 'square'
+    console.log(`[Index] Screen shape: ${this.screenShape}`)
+  },
+
+  /**
+   * 初始化模块
+   * @private
+   */
+  async _initModules() {
+    // 初始化安全存储
+    this.secureStorage = new SecureStorage()
+    await this.secureStorage.init({
+      deviceId: 'mock-device-001',
+      userPin: '1234',
+    })
+
+    // 初始化体态引擎
+    this.engine = new PostureEngine({
+      sampleRate: 50,
+      windowSize: 250,
+    })
+    await this.engine.init()
+
+    // 设置引擎回调
+    this.engine.onResult = (filterResult, features) => {
+      this._onPostureResult(filterResult, features)
+    }
+
+    this.engine.onEvent = (eventType, event) => {
+      this._onAlertEvent(eventType, event)
+    }
+
+    // 监听系统状态事件
+    eventBus.on('system:status', (event) => {
+      this._updateSystemStatus(event.module, event.status)
+    })
+
+    eventBus.on('sensor:error', (event) => {
+      this._updateSystemStatus('sensor', 'error')
+    })
+
+    eventBus.on('storage:error', (event) => {
+      this._updateSystemStatus('storage', 'error')
+    })
+
+    // 初始化系统状态
+    this._updateSystemStatus('sensor', 'ok')
+    this._updateSystemStatus('engine', 'ok')
+    this._updateSystemStatus('storage', 'ok')
+
+    console.log('[Index] Modules initialized')
+  },
+
+  /**
+   * 加载仪表盘数据
+   * @private
+   */
+  async _loadDashboardData() {
+    try {
+      // 从安全存储读取 L1 脱敏统计数据
+      const stats = await this.secureStorage.read('/data/secure/l1/daily-stats.json')
+      if (stats) {
+        this.healthScore = stats.healthScore || 72
+        this.todayAnomalies = stats.anomalies || this.todayAnomalies
+        this._updateScoreClass()
+      }
+    } catch (error) {
+      console.log('[Index] No existing stats, using defaults')
+    }
+  },
+
+  /**
+   * 启动自动刷新
+   * @private
+   */
+  _startAutoRefresh() {
+    this.refreshTimer = setInterval(() => {
+      this._loadDashboardData()
+    }, 30000) // 每30秒刷新
+  },
+
+  /**
+   * 体态识别结果回调
+   * @private
+   */
+  _onPostureResult(filterResult, features) {
+    this.currentPostureIcon = getPostureIcon(filterResult.posture)
+    this.currentPostureType = getPostureName(filterResult.posture)
+    this.currentConfidence = Math.round(filterResult.confidence * 100)
+    this.currentDuration = Math.round(filterResult.duration)
+
+    // 更新健康评分（简化逻辑）
+    if (filterResult.posture !== POSTURE_TYPE.NORMAL) {
+      this.healthScore = Math.max(0, this.healthScore - 1)
+    } else {
+      this.healthScore = Math.min(100, this.healthScore + 0.5)
+    }
+    this._updateScoreClass()
+  },
+
+  /**
+   * 更新评分颜色
+   * @private
+   */
+  _updateScoreClass() {
+    if (this.healthScore >= 80) {
+      this.healthScoreClass = 'score-good'
+    } else if (this.healthScore >= 60) {
+      this.healthScoreClass = 'score-warn'
+    } else {
+      this.healthScoreClass = 'score-danger'
+    }
+  },
+
+  /**
+   * 提醒事件回调
+   * @private
+   */
+  _onAlertEvent(eventType, event) {
+    // 更新异常计数
+    if (event && event.posture) {
+      const idx = this.todayAnomalies.findIndex(a => a.label === event.postureName)
+      if (idx >= 0) {
+        this.todayAnomalies[idx].value++
+      }
+    }
+  },
+
+  /**
+   * 开始监测
+   * @private
+   */
+  _startMonitor() {
+    if (this.monitorRunning) return
+
+    const app = this.$app.$def
+    this.engine.start()
+    this.monitorRunning = true
+    prompt.showToast({ message: '体态监测已启动' })
+  },
+
+  /**
+   * 停止监测
+   * @private
+   */
+  _stopMonitor() {
+    if (!this.monitorRunning) return
+    this.engine.stop()
+    this.monitorRunning = false
+  },
+
+  /**
+   * 跳转到隐私中心
+   */
+  goToPrivacyCenter() {
+    router.push({ uri: '/pages/privacy-center' })
+  },
+
+  /**
+   * 跳转到体态分析
+   */
+  goToPostureAnalysis() {
+    router.push({ uri: '/pages/posture-analysis' })
+  },
+
+  /**
+   * 显示系统状态详情
+   */
+  showSystemStatus() {
+    const statusText = `
+系统状态: ${this.systemStatusText}
+传感器: ${this.sensorStatus}
+AI引擎: ${this.engineStatus}
+存储: ${this.storageStatus}
+    `.trim()
+
+    prompt.showDialog({
+      title: '系统状态',
+      message: statusText,
+      buttons: [{ text: '确定', color: '#2979FF' }],
+    })
+  },
+
+  /**
+   * 更新系统状态
+   * @private
+   */
+  _updateSystemStatus(module, status) {
+    switch (module) {
+      case 'sensor':
+        this.sensorStatus = status === 'ok' ? '✓' : '✗'
+        break
+      case 'engine':
+        this.engineStatus = status === 'ok' ? '✓' : '✗'
+        break
+      case 'storage':
+        this.storageStatus = status === 'ok' ? '✓' : '✗'
+        break
+    }
+
+    // 更新整体状态
+    if (this.sensorStatus === '✗' || this.engineStatus === '✗' || this.storageStatus === '✗') {
+      this.systemStatus = 'error'
+      this.systemStatusText = '系统异常'
+    } else {
+      this.systemStatus = 'ok'
+      this.systemStatusText = '系统正常'
+    }
+  },
+}
+</script>
+
+<style>
+/* 通用样式 */
+.page {
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+/* ============ 系统状态指示器 ============ */
+.system-status {
+  position: absolute;
+  top: 15px;
+  left: 0;
+  right: 0;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.system-status-square {
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  margin-right: 6px;
+}
+
+.status-dot.ok {
+  background-color: #00C853;
+}
+
+.status-dot.error {
+  background-color: #FF1744;
+}
+
+.status-dot.degraded {
+  background-color: #FFD600;
+}
+
+.status-text {
+  font-size: 11px;
+  color: #888888;
+}
+
+.status-details-mini {
+  flex-direction: row;
+  margin-left: auto;
+}
+
+.detail-mini {
+  font-size: 10px;
+  color: #666666;
+  margin-left: 8px;
+}
+
+/* ============ 圆形表盘样式 ============ */
+.page.round {
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+}
+
+.round-content {
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.round-center {
+  justify-content: center;
+  align-items: center;
+}
+
+.round-bottom {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  align-items: center;
+}
+
+.privacy-indicator {
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 16px;
+  background-color: rgba(26, 26, 46, 0.8);
+  border-radius: 20px;
+}
+
+.privacy-text {
+  font-size: 12px;
+  color: #ffffff;
+  margin-left: 8px;
+}
+
+.pull-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  align-items: center;
+}
+
+.pull-hint-text {
+  font-size: 11px;
+  color: #666666;
+}
+
+/* ============ 方形表盘样式 ============ */
+.page.square {
+  flex-direction: column;
+  padding: 15px;
+}
+
+/* 顶部评分区 */
+.square-header {
+  width: 100%;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+}
+
+.score-section {
+  flex-direction: column;
+}
+
+.score-value {
+  font-size: 56px;
+  font-weight: bold;
+}
+
+.score-good {
+  color: #00C853;
+}
+
+.score-warn {
+  color: #FFD600;
+}
+
+.score-danger {
+  color: #FF1744;
+}
+
+.score-label {
+  font-size: 14px;
+  color: #888888;
+  margin-top: -5px;
+}
+
+.privacy-badge {
+  padding: 5px;
+}
+
+/* 图表区 */
+.chart-section {
+  width: 100%;
+  margin-top: 10px;
+}
+
+.section-title {
+  font-size: 14px;
+  color: #888888;
+  margin-bottom: 8px;
+}
+
+/* 状态卡片 */
+.status-card {
+  width: 100%;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  margin-top: 12px;
+}
+
+.status-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.status-icon {
+  font-size: 24px;
+  margin-right: 10px;
+}
+
+.status-info {
+  flex-direction: column;
+  flex: 1;
+}
+
+.status-title {
+  font-size: 13px;
+  color: #888888;
+}
+
+.status-value {
+  font-size: 15px;
+  color: #00C853;
+  font-weight: bold;
+}
+
+.status-details {
+  flex-direction: row;
+  justify-content: space-around;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top-width: 1px;
+  border-top-color: #2a2a4e;
+}
+
+.detail-item {
+  flex-direction: column;
+  align-items: center;
+}
+
+.detail-label {
+  font-size: 11px;
+  color: #666666;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #ffffff;
+  margin-top: 2px;
+}
+
+.status-actions {
+  margin-top: 10px;
+  align-items: flex-end;
+}
+
+.action-btn {
+  padding: 6px 12px;
+  background-color: #2979FF;
+  border-radius: 12px;
+}
+
+.action-text {
+  font-size: 12px;
+  color: #ffffff;
+}
+
+/* 当前体态 */
+.current-posture {
+  width: 100%;
+  flex-direction: row;
+  align-items: center;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+
+.posture-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  background-color: #2a2a4e;
+  border-radius: 22px;
+  justify-content: center;
+  align-items: center;
+}
+
+.posture-emoji {
+  font-size: 24px;
+}
+
+.posture-info {
+  flex: 1;
+  flex-direction: column;
+  margin-left: 12px;
+}
+
+.posture-type {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.posture-confidence {
+  font-size: 12px;
+  color: #888888;
+  margin-top: 2px;
+}
+
+.posture-duration {
+  flex-direction: column;
+  align-items: center;
+}
+
+.duration-value {
+  font-size: 20px;
+  color: #00C853;
+  font-weight: bold;
+}
+
+.duration-unit {
+  font-size: 10px;
+  color: #666666;
+}
+</style>

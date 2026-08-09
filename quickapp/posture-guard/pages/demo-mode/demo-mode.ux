@@ -1,0 +1,621 @@
+<template>
+  <div class="page">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <div class="back-btn" onclick="goBack">
+        <text class="back-icon">←</text>
+      </div>
+      <text class="title">🎯 演示模式</text>
+      <div class="placeholder"></div>
+    </div>
+
+    <!-- 演示控制 -->
+    <div class="control-card">
+      <text class="card-title">演示控制</text>
+      <div class="control-buttons">
+        <div class="ctrl-btn {{ isPlaying ? 'pause' : 'play' }}" onclick="togglePlay">
+          <text class="ctrl-btn-text">{{ isPlaying ? '⏸ 暂停' : '▶️ 播放' }}</text>
+        </div>
+        <div class="ctrl-btn reset" onclick="resetDemo">
+          <text class="ctrl-btn-text">🔄 重置</text>
+        </div>
+      </div>
+      <div class="progress-section">
+        <text class="progress-label">进度: {{ progressPercent }}%</text>
+        <div class="progress-bar">
+          <div class="progress-fill" style="width: {{ progressPercent }}%"></div>
+        </div>
+        <text class="time-label">{{ currentTime }} / {{ totalTime }}</text>
+      </div>
+    </div>
+
+    <!-- 实时识别结果 -->
+    <div class="result-card">
+      <text class="card-title">实时识别结果</text>
+      <div class="result-row">
+        <div class="result-icon">
+          <text class="posture-emoji">{{ currentPostureIcon }}</text>
+        </div>
+        <div class="result-info">
+          <text class="result-type">{{ currentPostureType }}</text>
+          <text class="result-confidence">置信度: {{ currentConfidence }}%</text>
+        </div>
+        <div class="result-duration">
+          <text class="duration-value">{{ currentDuration }}s</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 隐私转化展示 -->
+    <div class="privacy-card">
+      <text class="card-title">隐私数据转化</text>
+      <div class="transform-row">
+        <div class="transform-step">
+          <text class="step-icon">🔓</text>
+          <text class="step-label">原始</text>
+          <text class="step-value">{{ rawData }}</text>
+        </div>
+        <text class="transform-arrow">→</text>
+        <div class="transform-step">
+          <text class="step-icon">🛡️</text>
+          <text class="step-label">脱敏</text>
+          <text class="step-value">{{ desensitizedData }}</text>
+        </div>
+        <text class="transform-arrow">→</text>
+        <div class="transform-step">
+          <text class="step-icon">🔒</text>
+          <text class="step-label">加密</text>
+          <text class="step-value">{{ encryptedData }}</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 安全评分 -->
+    <div class="score-card">
+      <div class="score-item">
+        <text class="score-value health">{{ healthScore }}</text>
+        <text class="score-label">健康评分</text>
+      </div>
+      <div class="score-divider"></div>
+      <div class="score-item">
+        <text class="score-value privacy">{{ privacyScore }}</text>
+        <text class="score-label">隐私评分</text>
+      </div>
+    </div>
+
+    <!-- 演示数据选择 -->
+    <div class="data-card">
+      <text class="card-title">演示场景</text>
+      <div class="data-buttons">
+        <div class="data-btn {{ currentData === 'office' ? 'active' : '' }}"
+             onclick="selectData('office')">
+          <text class="data-btn-text">办公1h</text>
+        </div>
+        <div class="data-btn {{ currentData === 'mixed' ? 'active' : '' }}"
+             onclick="selectData('mixed')">
+          <text class="data-btn-text">混合日常</text>
+        </div>
+        <div class="data-btn {{ currentData === 'week' ? 'active' : '' }}"
+             onclick="selectData('week')">
+          <text class="data-btn-text">1周趋势</text>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 演示模式页面
+ *
+ * 自动播放预设场景数据流，实时展示识别结果
+ *
+ * @module pages/demo-mode
+ */
+
+import router from '@system.router'
+import { getPostureName, getPostureIcon, POSTURE_TYPE } from '../../common/constants/postures'
+
+export default {
+  private: {
+    // 播放状态
+    isPlaying: false,
+    progressPercent: 0,
+    currentTime: '00:00',
+    totalTime: '01:00:00',
+
+    // 当前识别结果
+    currentPostureIcon: '⏳',
+    currentPostureType: '等待播放...',
+    currentConfidence: 0,
+    currentDuration: 0,
+
+    // 隐私转化展示
+    rawData: '心率: 72bpm',
+    desensitizedData: '心率: 70-75',
+    encryptedData: 'AES-256...',
+
+    // 评分
+    healthScore: 75,
+    privacyScore: 92,
+
+    // 演示数据
+    currentData: 'office',
+    demoPhases: [],
+    currentPhaseIndex: 0,
+
+    // 定时器
+    playTimer: null,
+    elapsedSeconds: 0,
+  },
+
+  onReady() {
+    console.log('[DemoMode] onReady')
+    this._loadDemoData('office')
+  },
+
+  onDestroy() {
+    this._stopPlay()
+  },
+
+  /**
+   * 加载演示数据
+   * @private
+   */
+  _loadDemoData(dataType) {
+    // 模拟演示数据
+    const demoData = {
+      office: {
+        duration: 3600,
+        phases: [
+          { posture: 'normal', duration: 600, confidence: 0.95 },
+          { posture: 'forward_tilt', duration: 300, confidence: 0.88 },
+          { posture: 'normal', duration: 120, confidence: 0.92 },
+          { posture: 'forward_tilt', duration: 480, confidence: 0.85 },
+          { posture: 'sedentary', duration: 900, confidence: 0.90 },
+          { posture: 'normal', duration: 600, confidence: 0.93 },
+          { posture: 'forward_tilt', duration: 600, confidence: 0.87 },
+        ],
+      },
+      mixed: {
+        duration: 86400,
+        phases: [
+          { posture: 'walking', duration: 3600, confidence: 0.94 },
+          { posture: 'normal', duration: 3600, confidence: 0.96 },
+          { posture: 'forward_tilt', duration: 1800, confidence: 0.88 },
+          { posture: 'sedentary', duration: 3600, confidence: 0.91 },
+          { posture: 'cross_leg', duration: 1800, confidence: 0.86 },
+          { posture: 'normal', duration: 5400, confidence: 0.95 },
+          { posture: 'sedentary', duration: 7200, confidence: 0.90 },
+        ],
+      },
+      week: {
+        duration: 604800,
+        phases: [
+          { posture: 'normal', duration: 86400, confidence: 0.93 },
+          { posture: 'sedentary', duration: 86400, confidence: 0.89 },
+          { posture: 'forward_tilt', duration: 86400, confidence: 0.87 },
+          { posture: 'normal', duration: 86400, confidence: 0.94 },
+          { posture: 'cross_leg', duration: 86400, confidence: 0.85 },
+          { posture: 'normal', duration: 86400, confidence: 0.92 },
+          { posture: 'walking', duration: 86400, confidence: 0.96 },
+        ],
+      },
+    }
+
+    this.demoPhases = demoData[dataType]?.phases || []
+    this.currentPhaseIndex = 0
+    this.elapsedSeconds = 0
+    this.progressPercent = 0
+
+    const totalSec = demoData[dataType]?.duration || 3600
+    const h = Math.floor(totalSec / 3600)
+    const m = Math.floor((totalSec % 3600) / 60)
+    this.totalTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`
+  },
+
+  /**
+   * 切换播放/暂停
+   */
+  togglePlay() {
+    if (this.isPlaying) {
+      this._stopPlay()
+    } else {
+      this._startPlay()
+    }
+  },
+
+  /**
+   * 开始播放
+   * @private
+   */
+  _startPlay() {
+    this.isPlaying = true
+    this.playTimer = setInterval(() => {
+      this._tick()
+    }, 100) // 100ms 刷新一次，模拟加速播放
+  },
+
+  /**
+   * 停止播放
+   * @private
+   */
+  _stopPlay() {
+    this.isPlaying = false
+    if (this.playTimer) {
+      clearInterval(this.playTimer)
+      this.playTimer = null
+    }
+  },
+
+  /**
+   * 重置演示
+   */
+  resetDemo() {
+    this._stopPlay()
+    this.elapsedSeconds = 0
+    this.progressPercent = 0
+    this.currentPhaseIndex = 0
+    this._updateDisplay()
+  },
+
+  /**
+   * 演示 tick
+   * @private
+   */
+  _tick() {
+    // 加速播放：1秒实际 = 10秒模拟时间
+    this.elapsedSeconds += 10
+
+    // 计算进度
+    const totalDuration = this.demoPhases.reduce((sum, p) => sum + p.duration, 0)
+    this.progressPercent = Math.min(100, Math.round((this.elapsedSeconds / totalDuration) * 100))
+
+    // 更新当前阶段
+    let accumulated = 0
+    for (let i = 0; i < this.demoPhases.length; i++) {
+      accumulated += this.demoPhases[i].duration
+      if (this.elapsedSeconds < accumulated) {
+        this.currentPhaseIndex = i
+        break
+      }
+    }
+
+    // 更新显示
+    this._updateDisplay()
+
+    // 检查是否播放完毕
+    if (this.elapsedSeconds >= totalDuration) {
+      this._stopPlay()
+    }
+  },
+
+  /**
+   * 更新显示
+   * @private
+   */
+  _updateDisplay() {
+    const phase = this.demoPhases[this.currentPhaseIndex]
+    if (phase) {
+      this.currentPostureIcon = getPostureIcon(phase.posture)
+      this.currentPostureType = getPostureName(phase.posture)
+      this.currentConfidence = Math.round(phase.confidence * 100)
+    }
+
+    // 更新时间显示
+    const h = Math.floor(this.elapsedSeconds / 3600)
+    const m = Math.floor((this.elapsedSeconds % 3600) / 60)
+    const s = this.elapsedSeconds % 60
+    this.currentTime = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+
+    // 更新隐私转化展示
+    this._updatePrivacyDisplay()
+  },
+
+  /**
+   * 更新隐私转化展示
+   * @private
+   */
+  _updatePrivacyDisplay() {
+    const hr = 70 + Math.floor(Math.random() * 10)
+    this.rawData = `心率: ${hr}bpm`
+    this.desensitizedData = `心率: ${Math.floor(hr / 5) * 5}-${Math.floor(hr / 5) * 5 + 5}`
+    this.encryptedData = `AES-${Math.random() > 0.5 ? '128' : '256'}...`
+
+    // 更新评分
+    if (this.currentPostureType !== '正常') {
+      this.healthScore = Math.max(0, this.healthScore - 1)
+    } else {
+      this.healthScore = Math.min(100, this.healthScore + 0.5)
+    }
+  },
+
+  /**
+   * 选择演示数据
+   * @param {string} dataType
+   */
+  selectData(dataType) {
+    this.currentData = dataType
+    this._stopPlay()
+    this._loadDemoData(dataType)
+    this._updateDisplay()
+  },
+
+  /**
+   * 返回上一页
+   */
+  goBack() {
+    this._stopPlay()
+    router.back()
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+/* 顶部导航 */
+.header {
+  width: 100%;
+  height: 50px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 15px;
+  background-color: #1a1a2e;
+}
+
+.back-btn {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.title {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.placeholder {
+  width: 30px;
+}
+
+/* 卡片通用 */
+.control-card,
+.result-card,
+.privacy-card,
+.score-card,
+.data-card {
+  width: 420px;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  margin: 8px auto;
+}
+
+.card-title {
+  font-size: 13px;
+  color: #888888;
+  margin-bottom: 10px;
+}
+
+/* 控制按钮 */
+.control-buttons {
+  flex-direction: row;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.ctrl-btn {
+  width: 120px;
+  height: 40px;
+  border-radius: 20px;
+  justify-content: center;
+  align-items: center;
+  margin: 0 10px;
+}
+
+.ctrl-btn.play {
+  background-color: #00C853;
+}
+
+.ctrl-btn.pause {
+  background-color: #FFD600;
+}
+
+.ctrl-btn.reset {
+  background-color: #2979FF;
+}
+
+.ctrl-btn-text {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* 进度条 */
+.progress-section {
+  flex-direction: column;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: #888888;
+  margin-bottom: 6px;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: #2a2a4e;
+  border-radius: 3px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: #00C853;
+  border-radius: 3px;
+}
+
+.time-label {
+  font-size: 11px;
+  color: #666666;
+  text-align: right;
+  margin-top: 4px;
+}
+
+/* 结果行 */
+.result-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.result-icon {
+  width: 50px;
+  height: 50px;
+  background-color: #2a2a4e;
+  border-radius: 25px;
+  justify-content: center;
+  align-items: center;
+}
+
+.posture-emoji {
+  font-size: 28px;
+}
+
+.result-info {
+  flex: 1;
+  flex-direction: column;
+  margin-left: 12px;
+}
+
+.result-type {
+  font-size: 18px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.result-confidence {
+  font-size: 12px;
+  color: #888888;
+  margin-top: 2px;
+}
+
+.result-duration {
+  flex-direction: column;
+  align-items: center;
+}
+
+.duration-value {
+  font-size: 16px;
+  color: #00C853;
+  font-weight: bold;
+}
+
+/* 隐私转化 */
+.transform-row {
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.transform-step {
+  flex-direction: column;
+  align-items: center;
+  width: 100px;
+}
+
+.step-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+.step-label {
+  font-size: 11px;
+  color: #888888;
+}
+
+.step-value {
+  font-size: 12px;
+  color: #ffffff;
+  margin-top: 4px;
+}
+
+.transform-arrow {
+  font-size: 18px;
+  color: #2979FF;
+}
+
+/* 评分 */
+.score-card {
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.score-item {
+  flex-direction: column;
+  align-items: center;
+}
+
+.score-value {
+  font-size: 36px;
+  font-weight: bold;
+}
+
+.score-value.health {
+  color: #00C853;
+}
+
+.score-value.privacy {
+  color: #2979FF;
+}
+
+.score-label {
+  font-size: 12px;
+  color: #888888;
+  margin-top: 4px;
+}
+
+.score-divider {
+  width: 1px;
+  height: 50px;
+  background-color: #2a2a4e;
+}
+
+/* 数据选择 */
+.data-buttons {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.data-btn {
+  width: 120px;
+  height: 36px;
+  background-color: #2a2a4e;
+  border-radius: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.data-btn.active {
+  background-color: #2979FF;
+}
+
+.data-btn-text {
+  font-size: 13px;
+  color: #ffffff;
+}
+</style>

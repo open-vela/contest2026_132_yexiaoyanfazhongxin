@@ -1,0 +1,13 @@
+# core模块 - 预留目录
+
+本目录用于存放核心业务逻辑模块（M2阶段实现）。
+
+## 预期模块
+
+- `posture-detector.js` - 体态识别算法
+- `privacy-manager.js` - 隐私数据管理
+- `data-pipeline.js` - 数据处理流水线
+
+## 当前状态
+
+预留空目录，仅建占位文件。
