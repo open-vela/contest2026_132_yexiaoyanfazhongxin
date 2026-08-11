@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "team_id": "contest2026_132_yexiaoyanfazhongxin",
+  "github_login": "H3259619347",
+  "generator": "claude-code-collector@1.2.0",
+  "updated_at": "2026-08-10T15:37:21.459Z",
+  "sessions": [
+    {
+      "session_id": "35a9401e-de70-4574-8389-191c5126ce62",
+      "tool": "claude-code",
+      "started_at": "2026-08-10T13:52:15.116Z",
+      "last_event_at": "2026-08-10T15:37:21.456Z",
+      "event_count": 90,
+      "raw_event_count": 134,
+      "file_path": "logs/H3259619347/2026-08-10/claude-code__35a9401e-de70-4574-8389-191c5126ce62.jsonl",
+      "collection_mode": "cli",
+      "health": "ok",
+      "model": "deepseek-v4-flash"
+    }
+  ]
+}
