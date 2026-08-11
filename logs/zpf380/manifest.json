@@ -3,7 +3,7 @@
   "team_id": "contest2026_132_yexiaoyanfazhongxin",
   "github_login": "zpf380",
   "generator": "claude-code-collector@1.2.0",
-  "updated_at": "2026-08-11T06:13:54.346Z",
+  "updated_at": "2026-08-11T06:16:58.193Z",
   "sessions": [
     {
       "session_id": "a87314ed-5f6c-412f-bab7-09d32a384bc8",
@@ -69,9 +69,9 @@
       "session_id": "99d5b0c2-974a-4bcf-9454-901e26c82aa3",
       "tool": "claude-code",
       "started_at": "2026-08-11T06:00:03.466Z",
-      "last_event_at": "2026-08-11T06:13:54.337Z",
-      "event_count": 85,
-      "raw_event_count": 120,
+      "last_event_at": "2026-08-11T06:16:58.178Z",
+      "event_count": 111,
+      "raw_event_count": 154,
       "file_path": "logs/zpf380/2026-08-11/claude-code__99d5b0c2-974a-4bcf-9454-901e26c82aa3.jsonl",
       "collection_mode": "cli",
       "health": "ok",
