@@ -1,0 +1,557 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <div class="back-btn" onclick="goBack">
+        <text class="back-icon">←</text>
+      </div>
+      <text class="title">设置</text>
+      <div class="header-right"></div>
+    </div>
+
+    <div class="scroll-content">
+      <!-- 提醒灵敏度 -->
+      <div class="section-card">
+        <text class="section-title">⚠️ 提醒灵敏度</text>
+        <div class="option-group">
+          <div class="option-item" for="{{ sensitivityOptions }}">
+            <div class="radio {{ sensitivity === $item.value ? 'checked' : '' }}"></div>
+            <text class="option-label">{{ $item.label }}</text>
+            <text class="option-desc">{{ $item.desc }}</text>
+          </div>
+        </div>
+      </div>
+
+      <!-- 数据采样策略 -->
+      <div class="section-card">
+        <text class="section-title">📊 数据采样策略</text>
+        <div class="option-group">
+          <div class="option-item" for="{{ samplingOptions }}">
+            <div class="radio {{ samplingStrategy === $item.value ? 'checked' : '' }}"></div>
+            <text class="option-label">{{ $item.label }}</text>
+            <text class="option-desc">{{ $item.desc }}</text>
+          </div>
+        </div>
+      </div>
+
+      <!-- 数据留存配置 -->
+      <div class="section-card">
+        <text class="section-title">🗓️ 数据留存</text>
+        <div class="option-group">
+          <div class="setting-row">
+            <text class="setting-label">冷数据留存天数</text>
+            <div class="stepper">
+              <div class="stepper-btn" onclick="adjustRetention(-1)">
+                <text class="stepper-text">-</text>
+              </div>
+              <text class="stepper-value">{{ retentionDays }}天</text>
+              <div class="stepper-btn" onclick="adjustRetention(1)">
+                <text class="stepper-text">+</text>
+              </div>
+            </div>
+          </div>
+          <div class="setting-row">
+            <text class="setting-label">自动销毁</text>
+            <div class="toggle {{ autoDestroy ? 'on' : '' }}" onclick="toggleAutoDestroy">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 安全设置 -->
+      <div class="section-card">
+        <text class="section-title">🔐 安全设置</text>
+        <div class="option-group">
+          <div class="setting-row">
+            <text class="setting-label">加密级别</text>
+            <div class="info-badge">
+              <text class="info-badge-text">AES-{{ encryptLevel }}</text>
+            </div>
+          </div>
+          <div class="setting-row">
+            <text class="setting-label">密钥重置</text>
+            <div class="danger-btn" onclick="resetKeys">
+              <text class="danger-btn-text">重置密钥</text>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 辅助功能 -->
+      <div class="section-card">
+        <text class="section-title">♿ 辅助功能</text>
+        <div class="option-group">
+          <div class="setting-row">
+            <text class="setting-label">高对比模式</text>
+            <div class="toggle {{ highContrast ? 'on' : '' }}" onclick="toggleHighContrast">
+              <div class="toggle-thumb"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 版本信息 -->
+      <div class="section-card">
+        <text class="section-title">ℹ️ 关于</text>
+        <div class="option-group">
+          <div class="setting-row">
+            <text class="setting-label">版本</text>
+            <text class="setting-value">v1.0.0</text>
+          </div>
+          <div class="setting-row">
+            <text class="setting-label">设备ID</text>
+            <text class="setting-value">mock-device-001</text>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="goTo('index')">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">首页</text>
+      </div>
+      <div class="nav-item" onclick="goTo('posture')">
+        <text class="nav-icon">🏃</text>
+        <text class="nav-label">体态</text>
+      </div>
+      <div class="nav-item" onclick="goTo('privacy')">
+        <text class="nav-icon">🛡️</text>
+        <text class="nav-label">隐私</text>
+      </div>
+      <div class="nav-item" onclick="goTo('report')">
+        <text class="nav-icon">📊</text>
+        <text class="nav-label">报表</text>
+      </div>
+      <div class="nav-item active">
+        <text class="nav-icon">⚙️</text>
+        <text class="nav-label">设置</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 设置页
+ *
+ * 功能：
+ * - 提醒灵敏度配置（低/中/高）
+ * - 数据采样策略（省电/均衡/高精度）
+ * - 数据留存配置（天数、自动销毁）
+ * - 安全设置（加密级别、密钥重置）
+ * - 辅助功能（高对比模式）
+ * - 所有设置通过 system.storage 持久化
+ */
+
+import router from '@system.router'
+import prompt from '@system.prompt'
+import storage from '@system.storage'
+
+const STORAGE_KEY = 'posture_guard_settings'
+
+const DEFAULT_SETTINGS = {
+  sensitivity: 'medium',
+  samplingStrategy: 'balanced',
+  retentionDays: 30,
+  autoDestroy: true,
+  highContrast: false,
+}
+
+export default {
+  private: {
+    // 提醒灵敏度
+    sensitivity: 'medium',
+    sensitivityOptions: [
+      { value: 'low', label: '低', desc: '仅严重异常提醒' },
+      { value: 'medium', label: '中', desc: '中度及以上异常提醒' },
+      { value: 'high', label: '高', desc: '所有异常均提醒' },
+    ],
+
+    // 数据采样策略
+    samplingStrategy: 'balanced',
+    samplingOptions: [
+      { value: 'power-save', label: '省电', desc: '5秒采样，低功耗' },
+      { value: 'balanced', label: '均衡', desc: '2秒采样，平衡模式' },
+      { value: 'high-precision', label: '高精度', desc: '50ms采样，最高精度' },
+    ],
+
+    // 数据留存
+    retentionDays: 30,
+    autoDestroy: true,
+
+    // 安全
+    encryptLevel: '128-GCM',
+
+    // 辅助功能
+    highContrast: false,
+  },
+
+  onReady() {
+    console.log('[Settings] onReady')
+    this._loadSettings()
+  },
+
+  /**
+   * 加载设置
+   * @private
+   */
+  _loadSettings() {
+    storage.get({
+      key: STORAGE_KEY,
+      success: (data) => {
+        try {
+          const saved = JSON.parse(data)
+          this.sensitivity = saved.sensitivity || DEFAULT_SETTINGS.sensitivity
+          this.samplingStrategy = saved.samplingStrategy || DEFAULT_SETTINGS.samplingStrategy
+          this.retentionDays = saved.retentionDays || DEFAULT_SETTINGS.retentionDays
+          this.autoDestroy = saved.autoDestroy !== undefined ? saved.autoDestroy : DEFAULT_SETTINGS.autoDestroy
+          this.highContrast = saved.highContrast || DEFAULT_SETTINGS.highContrast
+          console.log('[Settings] Loaded:', saved)
+        } catch (e) {
+          console.log('[Settings] Parse error, using defaults')
+        }
+      },
+      fail: () => {
+        console.log('[Settings] No saved settings, using defaults')
+      },
+    })
+  },
+
+  /**
+   * 保存设置
+   * @private
+   */
+  _saveSettings() {
+    const settings = {
+      sensitivity: this.sensitivity,
+      samplingStrategy: this.samplingStrategy,
+      retentionDays: this.retentionDays,
+      autoDestroy: this.autoDestroy,
+      highContrast: this.highContrast,
+    }
+
+    storage.set({
+      key: STORAGE_KEY,
+      value: JSON.stringify(settings),
+      success: () => {
+        console.log('[Settings] Saved:', settings)
+        prompt.showToast({ message: '设置已保存' })
+      },
+      fail: () => {
+        console.error('[Settings] Save failed')
+        prompt.showToast({ message: '保存失败' })
+      },
+    })
+  },
+
+  /**
+   * 切换灵敏度
+   */
+  switchSensitivity(e) {
+    const value = e.target.attr.data.value
+    this.sensitivity = value
+    this._saveSettings()
+  },
+
+  /**
+   * 切换采样策略
+   */
+  switchSamplingStrategy(e) {
+    const value = e.target.attr.data.value
+    this.samplingStrategy = value
+    this._saveSettings()
+  },
+
+  /**
+   * 调整留存天数
+   */
+  adjustRetention(delta) {
+    const newVal = this.retentionDays + delta
+    if (newVal >= 7 && newVal <= 90) {
+      this.retentionDays = newVal
+      this._saveSettings()
+    }
+  },
+
+  /**
+   * 切换自动销毁
+   */
+  toggleAutoDestroy() {
+    this.autoDestroy = !this.autoDestroy
+    this._saveSettings()
+  },
+
+  /**
+   * 切换高对比模式
+   */
+  toggleHighContrast() {
+    this.highContrast = !this.highContrast
+    this._saveSettings()
+  },
+
+  /**
+   * 重置密钥
+   */
+  resetKeys() {
+    prompt.showDialog({
+      title: '重置加密密钥',
+      message: '重置后旧数据将无法解密，确定继续？',
+      buttons: [
+        { text: '取消', color: '#999999' },
+        { text: '确认重置', color: '#FF1744' },
+      ],
+      success: (res) => {
+        if (res.index === 1) {
+          // 执行密钥重置
+          storage.delete({ key: 'posture_guard_keys' })
+          storage.delete({ key: 'posture_guard_data' })
+          prompt.showToast({ message: '密钥已重置，旧数据已清除' })
+        }
+      },
+    })
+  },
+
+  /**
+   * 页面导航
+   */
+  goTo(page) {
+    router.push({ uri: `/pages/${page}/${page}` })
+  },
+
+  goBack() {
+    router.back()
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+/* 顶部导航 */
+.header {
+  width: 100%;
+  height: 44px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background-color: #1a1a2e;
+}
+
+.back-btn {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.title {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.header-right {
+  width: 30px;
+}
+
+/* 滚动内容 */
+.scroll-content {
+  flex: 1;
+  flex-direction: column;
+  padding: 8px 12px;
+}
+
+/* 区块卡片 */
+.section-card {
+  margin-bottom: 10px;
+  padding: 12px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+}
+
+.section-title {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 10px;
+}
+
+.option-group {
+  flex-direction: column;
+}
+
+/* 选项行 */
+.option-item {
+  flex-direction: row;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom-width: 1px;
+  border-bottom-color: #2a2a4e;
+}
+
+.option-item:last-child {
+  border-bottom-width: 0;
+}
+
+.radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  border-width: 2px;
+  border-color: #666666;
+  margin-right: 10px;
+}
+
+.radio.checked {
+  background-color: #2979FF;
+  border-color: #2979FF;
+}
+
+.option-label {
+  font-size: 13px;
+  color: #ffffff;
+  width: 60px;
+}
+
+.option-desc {
+  font-size: 11px;
+  color: #888888;
+  flex: 1;
+}
+
+/* 设置行 */
+.setting-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.setting-label {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.setting-value {
+  font-size: 12px;
+  color: #666666;
+}
+
+/* 步进器 */
+.stepper {
+  flex-direction: row;
+  align-items: center;
+}
+
+.stepper-btn {
+  width: 28px;
+  height: 28px;
+  background-color: #2a2a4e;
+  border-radius: 14px;
+  justify-content: center;
+  align-items: center;
+}
+
+.stepper-text {
+  font-size: 16px;
+  color: #ffffff;
+}
+
+.stepper-value {
+  font-size: 14px;
+  color: #ffffff;
+  width: 50px;
+  text-align: center;
+}
+
+/* 开关 */
+.toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background-color: #333333;
+  padding: 2px;
+  justify-content: flex-start;
+  align-items: center;
+}
+
+.toggle.on {
+  background-color: #2979FF;
+  justify-content: flex-end;
+}
+
+.toggle-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background-color: #ffffff;
+}
+
+/* 信息徽章 */
+.info-badge {
+  padding: 4px 10px;
+  background-color: #0d3320;
+  border-radius: 8px;
+}
+
+.info-badge-text {
+  font-size: 11px;
+  color: #4CAF50;
+}
+
+/* 危险按钮 */
+.danger-btn {
+  padding: 6px 14px;
+  background-color: #3d0000;
+  border-radius: 8px;
+}
+
+.danger-btn-text {
+  font-size: 12px;
+  color: #FF1744;
+}
+
+/* 底部导航 */
+.bottom-nav {
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  background-color: #1a1a2e;
+  border-top-width: 1px;
+  border-top-color: #2a2a4e;
+  padding: 6px 0;
+}
+
+.nav-item {
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+}
+
+.nav-item.active .nav-label {
+  color: #2979FF;
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+.nav-label {
+  font-size: 9px;
+  color: #888888;
+  margin-top: 2px;
+}
+</style>

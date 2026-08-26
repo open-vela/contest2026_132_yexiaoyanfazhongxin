@@ -1,0 +1,571 @@
+<template>
+  <div class="page">
+    <!-- 顶部导航 -->
+    <div class="header">
+      <div class="back-btn" onclick="goBack">
+        <text class="back-icon">←</text>
+      </div>
+      <text class="title">体态分析</text>
+      <div class="time-range" onclick="toggleTimeRange">
+        <text class="time-range-text">{{ timeRangeLabel }}</text>
+      </div>
+    </div>
+
+    <!-- 实时体态状态 -->
+    <div class="realtime-card">
+      <div class="realtime-row">
+        <text class="realtime-emoji">{{ currentPostureIcon }}</text>
+        <div class="realtime-info">
+          <text class="realtime-type">{{ currentPostureType }}</text>
+          <text class="realtime-detail">置信度 {{ currentConfidence }}% · {{ currentDuration }}秒</text>
+        </div>
+        <div class="realtime-dot {{ engineRunning ? 'running' : 'stopped' }}"></div>
+      </div>
+    </div>
+
+    <!-- Mock 场景切换 -->
+    <div class="mock-section">
+      <text class="section-label">模拟场景</text>
+      <div class="mock-btns">
+        <div class="mock-btn {{ currentScenario === 'normal' ? 'active' : '' }}"
+             onclick="switchScenario('normal')">
+          <text class="mock-btn-text">😊 正常</text>
+        </div>
+        <div class="mock-btn {{ currentScenario === 'sedentary' ? 'active' : '' }}"
+             onclick="switchScenario('sedentary')">
+          <text class="mock-btn-text">🪑 久坐</text>
+        </div>
+        <div class="mock-btn {{ currentScenario === 'headDown' ? 'active' : '' }}"
+             onclick="switchScenario('headDown')">
+          <text class="mock-btn-text">📱 低头</text>
+        </div>
+        <div class="mock-btn {{ currentScenario === 'crossLeg' ? 'active' : '' }}"
+             onclick="switchScenario('crossLeg')">
+          <text class="mock-btn-text">🦵 跷腿</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7日趋势折线图 -->
+    <div class="chart-card">
+      <div class="card-header">
+        <text class="card-title">健康评分趋势</text>
+        <text class="card-subtitle">{{ timeRangeLabel }}</text>
+      </div>
+      <line-chart
+        data="{{ trendData }}"
+        labels="{{ trendLabels }}"
+        width="420"
+        height="120"
+        lineColor="#00C853"
+      ></line-chart>
+    </div>
+
+    <!-- 异常类型饼图 -->
+    <div class="chart-row">
+      <div class="chart-half">
+        <text class="card-title">异常分布</text>
+        <pie-chart data="{{ anomalyDistribution }}" size="110"></pie-chart>
+      </div>
+      <div class="chart-half">
+        <text class="card-title">体态分布</text>
+        <pie-chart data="{{ postureDistribution }}" size="110"></pie-chart>
+      </div>
+    </div>
+
+    <!-- 今日时间线 -->
+    <div class="timeline-card">
+      <div class="card-header">
+        <text class="card-title">今日体态时间线</text>
+      </div>
+      <div class="timeline-scroll">
+        <div class="timeline-item" for="{{ timelineData }}">
+          <div class="timeline-time">{{ $item.time }}</div>
+          <div class="timeline-bar {{ $item.type }}" style="width: {{ $item.width }}px"></div>
+          <div class="timeline-label">{{ $item.label }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 改善建议 -->
+    <div class="advice-card">
+      <div class="card-header">
+        <text class="card-icon">💡</text>
+        <text class="card-title">改善建议</text>
+      </div>
+      <div class="advice-list">
+        <div class="advice-item" for="{{ adviceList }}">
+          <text class="advice-bullet">•</text>
+          <text class="advice-text">{{ $item }}</text>
+        </div>
+      </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="goTo('index')">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">首页</text>
+      </div>
+      <div class="nav-item active">
+        <text class="nav-icon">🏃</text>
+        <text class="nav-label">体态</text>
+      </div>
+      <div class="nav-item" onclick="goTo('privacy')">
+        <text class="nav-icon">🛡️</text>
+        <text class="nav-label">隐私</text>
+      </div>
+      <div class="nav-item" onclick="goTo('report')">
+        <text class="nav-icon">📊</text>
+        <text class="nav-label">报表</text>
+      </div>
+      <div class="nav-item" onclick="goTo('settings')">
+        <text class="nav-icon">⚙️</text>
+        <text class="nav-label">设置</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 体态分析页
+ *
+ * 功能：
+ * - 实时体态状态展示
+ * - Mock 场景快速切换
+ * - 7日趋势折线图
+ * - 异常类型饼图 + 体态分布饼图
+ * - 今日时间线
+ * - 改善建议
+ * - 底部导航
+ */
+
+import router from '@system.router'
+import { PostureEngine } from '../../core/posture-engine'
+import { getPostureName, getPostureIcon, POSTURE_TYPE } from '../../common/constants/postures'
+import { SensorMock } from '../../common/utils/sensor-mock'
+
+export default {
+  private: {
+    // 时间范围
+    timeRange: 'week',
+    timeRangeLabel: '近7天',
+
+    // 实时体态
+    currentPostureIcon: '⏳',
+    currentPostureType: '等待数据...',
+    currentConfidence: 0,
+    currentDuration: 0,
+    engineRunning: false,
+
+    // Mock 场景
+    currentScenario: 'normal',
+
+    // 趋势数据（从存储加载，此处用 Mock 数据）
+    trendData: [65, 72, 68, 75, 80, 78, 82],
+    trendLabels: ['周一', '周二', '周三', '周四', '周五', '周六', '周日'],
+
+    // 异常分布
+    anomalyDistribution: [
+      { label: '久坐', value: 35, color: '#2979FF' },
+      { label: '低头', value: 45, color: '#FF9800' },
+      { label: '跷腿', value: 20, color: '#9C27B0' },
+    ],
+
+    // 体态分布
+    postureDistribution: [
+      { label: '正常', value: 60, color: '#00C853' },
+      { label: '久坐', value: 20, color: '#2979FF' },
+      { label: '低头', value: 15, color: '#FF9800' },
+      { label: '跷腿', value: 5, color: '#9C27B0' },
+    ],
+
+    // 时间线数据
+    timelineData: [
+      { time: '09:00', type: 'normal', width: 120, label: '正常坐姿' },
+      { time: '10:30', type: 'sedentary', width: 180, label: '久坐 1.5h' },
+      { time: '12:00', type: 'normal', width: 60, label: '午休' },
+      { time: '14:00', type: 'forward', width: 90, label: '低头工作' },
+      { time: '15:30', type: 'normal', width: 45, label: '活动休息' },
+      { time: '16:00', type: 'cross', width: 120, label: '跷二郎腿' },
+    ],
+
+    // 改善建议
+    adviceList: [
+      '今日低头次数较多，建议每小时活动颈部',
+      '久坐时长超过2小时，建议定时站立休息',
+      '跷腿习惯需注意，建议保持双脚平放',
+    ],
+
+    // 引擎实例
+    engine: null,
+    sensorMock: null,
+  },
+
+  onReady() {
+    console.log('[Posture] onReady')
+    this._initEngine()
+  },
+
+  onDestroy() {
+    if (this.engine) this.engine.stop()
+    if (this.sensorMock) this.sensorMock.stopStream()
+  },
+
+  /**
+   * 初始化引擎和 Mock
+   * @private
+   */
+  async _initEngine() {
+    try {
+      this.engine = new PostureEngine({ sampleRate: 50, windowSize: 250 })
+      await this.engine.init()
+
+      this.engine.onResult = (filterResult, features) => {
+        this.currentPostureIcon = getPostureIcon(filterResult.posture)
+        this.currentPostureType = getPostureName(filterResult.posture)
+        this.currentConfidence = Math.round(filterResult.confidence * 100)
+        this.currentDuration = Math.round(filterResult.duration)
+      }
+
+      this.sensorMock = new SensorMock()
+      this.sensorMock.injectScenario('mixed-daily')
+      this.sensorMock.startStream((data) => {
+        if (this.engine && this.engine.sensorInterface) {
+          this.engine.sensorInterface._emitData(data)
+        }
+      })
+
+      this.engine.start({ mockMode: true })
+      this.engineRunning = true
+    } catch (error) {
+      console.error('[Posture] Engine init failed:', error)
+    }
+  },
+
+  /**
+   * 切换 Mock 场景
+   */
+  switchScenario(scenario) {
+    const scenarioMap = {
+      'normal': 'mixed-daily',
+      'sedentary': 'sedentary-2h',
+      'headDown': 'office-work-1h',
+      'crossLeg': 'cross-leg-30m',
+    }
+    const mappedScenario = scenarioMap[scenario] || scenario
+
+    if (this.sensorMock) {
+      this.sensorMock.stopStream()
+      this.sensorMock.injectScenario(mappedScenario)
+      this.sensorMock.startStream((data) => {
+        if (this.engine && this.engine.sensorInterface) {
+          this.engine.sensorInterface._emitData(data)
+        }
+      })
+    }
+    this.currentScenario = scenario
+  },
+
+  /**
+   * 切换时间范围
+   */
+  toggleTimeRange() {
+    const ranges = ['today', 'week', 'month']
+    const labels = { today: '今日', week: '近7天', month: '近30天' }
+    const currentIndex = ranges.indexOf(this.timeRange)
+    const nextIndex = (currentIndex + 1) % ranges.length
+    this.timeRange = ranges[nextIndex]
+    this.timeRangeLabel = labels[this.timeRange]
+  },
+
+  /**
+   * 页面导航
+   */
+  goTo(page) {
+    router.push({ uri: `/pages/${page}/${page}` })
+  },
+
+  goBack() {
+    router.back()
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+/* 顶部导航 */
+.header {
+  width: 100%;
+  height: 44px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background-color: #1a1a2e;
+}
+
+.back-btn {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
+  align-items: center;
+}
+
+.back-icon {
+  font-size: 20px;
+  color: #ffffff;
+}
+
+.title {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.time-range {
+  padding: 4px 10px;
+  background-color: #2979FF;
+  border-radius: 10px;
+}
+
+.time-range-text {
+  font-size: 11px;
+  color: #ffffff;
+}
+
+/* 实时状态卡片 */
+.realtime-card {
+  margin: 8px 12px;
+  padding: 10px 14px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+}
+
+.realtime-row {
+  flex-direction: row;
+  align-items: center;
+}
+
+.realtime-emoji {
+  font-size: 28px;
+  margin-right: 12px;
+}
+
+.realtime-info {
+  flex: 1;
+  flex-direction: column;
+}
+
+.realtime-type {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.realtime-detail {
+  font-size: 11px;
+  color: #888888;
+  margin-top: 2px;
+}
+
+.realtime-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+}
+
+.realtime-dot.running { background-color: #00C853; }
+.realtime-dot.stopped { background-color: #FF1744; }
+
+/* Mock 场景切换 */
+.mock-section {
+  margin: 0 12px 8px;
+  padding: 8px 10px;
+  background-color: #1a1a2e;
+  border-radius: 8px;
+}
+
+.section-label {
+  font-size: 11px;
+  color: #666666;
+  margin-bottom: 6px;
+}
+
+.mock-btns {
+  flex-direction: row;
+  justify-content: space-between;
+}
+
+.mock-btn {
+  padding: 5px 8px;
+  background-color: #2a2a4e;
+  border-radius: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.mock-btn.active {
+  background-color: #2979FF;
+}
+
+.mock-btn-text {
+  font-size: 11px;
+  color: #ffffff;
+}
+
+/* 图表卡片 */
+.chart-card {
+  width: 420px;
+  padding: 10px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  margin: 0 auto 8px;
+}
+
+.chart-row {
+  flex-direction: row;
+  justify-content: space-between;
+  margin: 0 12px 8px;
+}
+
+.chart-half {
+  flex: 1;
+  padding: 8px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  align-items: center;
+  margin: 0 4px;
+}
+
+.card-header {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.card-icon {
+  font-size: 14px;
+  margin-right: 6px;
+}
+
+.card-title {
+  font-size: 13px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.card-subtitle {
+  font-size: 11px;
+  color: #666666;
+  margin-left: 6px;
+}
+
+/* 时间线 */
+.timeline-card {
+  margin: 0 12px 8px;
+  padding: 10px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+}
+
+.timeline-scroll {
+  flex-direction: column;
+  max-height: 100px;
+}
+
+.timeline-item {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.timeline-time {
+  font-size: 10px;
+  color: #666666;
+  width: 40px;
+}
+
+.timeline-bar {
+  height: 14px;
+  border-radius: 3px;
+  margin: 0 6px;
+}
+
+.timeline-bar.normal { background-color: #00C853; }
+.timeline-bar.sedentary { background-color: #2979FF; }
+.timeline-bar.forward { background-color: #FF9800; }
+.timeline-bar.cross { background-color: #9C27B0; }
+
+.timeline-label {
+  font-size: 10px;
+  color: #aaaaaa;
+}
+
+/* 改善建议 */
+.advice-card {
+  margin: 0 12px 8px;
+  padding: 10px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+}
+
+.advice-list {
+  flex-direction: column;
+}
+
+.advice-item {
+  flex-direction: row;
+  margin-bottom: 6px;
+}
+
+.advice-bullet {
+  font-size: 13px;
+  color: #FFD600;
+  width: 14px;
+}
+
+.advice-text {
+  font-size: 12px;
+  color: #ffffff;
+  flex: 1;
+}
+
+/* 底部导航 */
+.bottom-nav {
+  flex: 1;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  background-color: #1a1a2e;
+  border-top-width: 1px;
+  border-top-color: #2a2a4e;
+}
+
+.nav-item {
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+}
+
+.nav-item.active .nav-label {
+  color: #2979FF;
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+.nav-label {
+  font-size: 9px;
+  color: #888888;
+  margin-top: 2px;
+}
+</style>
