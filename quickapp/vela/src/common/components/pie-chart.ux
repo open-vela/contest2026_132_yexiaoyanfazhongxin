@@ -1,0 +1,148 @@
+<template>
+  <div class="pie-container">
+    <canvas ref="pieCanvas" class="pie-canvas"></canvas>
+    <div class="pie-legend">
+      <div class="legend-item" for="{{ data }}">
+        <div class="legend-color" style="background-color: {{ $item.color }}"></div>
+        <text class="legend-label">{{ $item.label }}</text>
+        <text class="legend-value">{{ $item.percent }}%</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 饼图组件
+ *
+ * 用于体态分析页异常分布展示，支持：
+ * - 扇形区域绘制
+ * - 图例显示
+ * - 百分比计算
+ *
+ * @module common/components/pie-chart
+ */
+
+export default {
+  props: {
+    data: { type: Array, default: [] },
+    size: { type: Number, default: 160 },
+  },
+
+  data() {
+    return {
+      ctx: null,
+    }
+  },
+
+  onReady() {
+    this._initCanvas()
+    this._draw()
+  },
+
+  watch: {
+    data() {
+      this._draw()
+    },
+  },
+
+  methods: {
+    _initCanvas() {
+      const canvas = this.$refs.pieCanvas
+      if (canvas) {
+        this.ctx = canvas.getContext('2d')
+        canvas.width = this.size
+        canvas.height = this.size
+      }
+    },
+
+    _draw() {
+      if (!this.ctx || !this.data.length) return
+      const ctx = this.ctx
+      const center = this.size / 2
+      const radius = this.size / 2 - 10
+
+      ctx.clearRect(0, 0, this.size, this.size)
+
+      const total = this.data.reduce((sum, d) => sum + d.value, 0)
+      if (total === 0) return
+
+      let startAngle = -Math.PI / 2
+
+      this.data.forEach((item, index) => {
+        const sweep = (item.value / total) * Math.PI * 2
+        const percent = Math.round((item.value / total) * 100)
+
+        // 绘制扇形
+        ctx.beginPath()
+        ctx.moveTo(center, center)
+        ctx.arc(center, center, radius, startAngle, startAngle + sweep)
+        ctx.closePath()
+        ctx.fillStyle = item.color
+        ctx.fill()
+
+        // 绘制白色间隔线
+        ctx.strokeStyle = '#0a0a0a'
+        ctx.lineWidth = 2
+        ctx.stroke()
+
+        // 计算并存储百分比
+        this.data[index].percent = percent
+
+        startAngle += sweep
+      })
+
+      // 绘制中心圆（环形效果）
+      ctx.beginPath()
+      ctx.arc(center, center, radius * 0.5, 0, Math.PI * 2)
+      ctx.fillStyle = '#1a1a2e'
+      ctx.fill()
+    },
+  },
+}
+</script>
+
+<style>
+.pie-container {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-around;
+  width: 400px;
+}
+
+.pie-canvas {
+  width: 160px;
+  height: 160px;
+}
+
+.pie-legend {
+  flex-direction: column;
+  margin-left: 20px;
+}
+
+.legend-item {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  margin-right: 8px;
+}
+
+.legend-label {
+  font-size: 13px;
+  color: #ffffff;
+  width: 80px;
+}
+
+.legend-value {
+  font-size: 13px;
+  color: #888888;
+  width: 40px;
+  text-align: right;
+}
+</style>
