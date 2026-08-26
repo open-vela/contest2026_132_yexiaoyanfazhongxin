@@ -13,7 +13,7 @@
  * - onDestroy: 清理资源、停止传感器订阅
  */
 
-import { SAMPLING_STRATEGY, DEFAULT_STRATEGY } from './common/constants/sampling-config'
+import { DEFAULT_STRATEGY } from './common/constants/sampling-config'
 import { SensorMock } from './common/utils/sensor-mock'
 
 export default {

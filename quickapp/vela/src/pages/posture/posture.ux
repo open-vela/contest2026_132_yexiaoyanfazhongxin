@@ -1,3 +1,6 @@
+<import name="line-chart" src="../../common/components/line-chart.ux"></import>
+<import name="pie-chart" src="../../common/components/pie-chart.ux"></import>
+
 <template>
   <div class="page">
     <!-- 顶部导航 -->
@@ -80,9 +83,9 @@
       </div>
       <div class="timeline-scroll">
         <div class="timeline-item" for="{{ timelineData }}">
-          <div class="timeline-time">{{ $item.time }}</div>
+          <text class="timeline-time">{{ $item.time }}</text>
           <div class="timeline-bar {{ $item.type }}" style="width: {{ $item.width }}px"></div>
-          <div class="timeline-label">{{ $item.label }}</div>
+          <text class="timeline-label">{{ $item.label }}</text>
         </div>
       </div>
     </div>
@@ -109,7 +112,7 @@
       </div>
       <div class="nav-item active">
         <text class="nav-icon">🏃</text>
-        <text class="nav-label">体态</text>
+        <text class="nav-label nav-label-active">体态</text>
       </div>
       <div class="nav-item" onclick="goTo('privacy')">
         <text class="nav-icon">🛡️</text>
@@ -143,7 +146,7 @@
 
 import router from '@system.router'
 import { PostureEngine } from '../../core/posture-engine'
-import { getPostureName, getPostureIcon, POSTURE_TYPE } from '../../common/constants/postures'
+import { getPostureName, getPostureIcon } from '../../common/constants/postures'
 import { SensorMock } from '../../common/utils/sensor-mock'
 
 export default {
@@ -222,6 +225,18 @@ export default {
       this.engine = new PostureEngine({ sampleRate: 50, windowSize: 250 })
       await this.engine.init()
 
+      // 创建 Mock 传感器适配器
+      const mockSensorAdapter = {
+        dataCallback: null,
+        onData(callback) {
+          this.dataCallback = callback
+        },
+        emit(data) {
+          if (this.dataCallback) this.dataCallback(data)
+        },
+      }
+      this.engine.sensorInterface = mockSensorAdapter
+
       this.engine.onResult = (filterResult, features) => {
         this.currentPostureIcon = getPostureIcon(filterResult.posture)
         this.currentPostureType = getPostureName(filterResult.posture)
@@ -233,7 +248,7 @@ export default {
       this.sensorMock.injectScenario('mixed-daily')
       this.sensorMock.startStream((data) => {
         if (this.engine && this.engine.sensorInterface) {
-          this.engine.sensorInterface._emitData(data)
+          this.engine.sensorInterface.emit(data)
         }
       })
 
@@ -261,7 +276,7 @@ export default {
       this.sensorMock.injectScenario(mappedScenario)
       this.sensorMock.startStream((data) => {
         if (this.engine && this.engine.sensorInterface) {
-          this.engine.sensorInterface._emitData(data)
+          this.engine.sensorInterface.emit(data)
         }
       })
     }
@@ -555,7 +570,7 @@ export default {
   padding: 4px 10px;
 }
 
-.nav-item.active .nav-label {
+.nav-label-active {
   color: #2979FF;
 }
 

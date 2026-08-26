@@ -126,7 +126,7 @@
       </div>
       <div class="nav-item active">
         <text class="nav-icon">⚙️</text>
-        <text class="nav-label">设置</text>
+        <text class="nav-label nav-label-active">设置</text>
       </div>
     </div>
   </div>
@@ -402,10 +402,6 @@ export default {
   border-bottom-color: #2a2a4e;
 }
 
-.option-item:last-child {
-  border-bottom-width: 0;
-}
-
 .radio {
   width: 16px;
   height: 16px;
@@ -541,7 +537,7 @@ export default {
   padding: 4px 10px;
 }
 
-.nav-item.active .nav-label {
+.nav-label-active {
   color: #2979FF;
 }
 

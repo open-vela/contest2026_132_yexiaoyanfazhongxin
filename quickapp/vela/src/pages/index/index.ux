@@ -25,9 +25,9 @@
     <!-- 今日异常统计 -->
     <div class="stats-row">
       <div class="stat-item" for="{{ todayAnomalies }}">
-        <text class="stat-icon">{{ item.icon }}</text>
-        <text class="stat-count">{{ item.count }}</text>
-        <text class="stat-name">{{ item.name }}</text>
+        <text class="stat-icon">{{ $item.icon }}</text>
+        <text class="stat-count">{{ $item.count }}</text>
+        <text class="stat-name">{{ $item.name }}</text>
       </div>
     </div>
 
@@ -64,7 +64,7 @@
     <div class="bottom-nav">
       <div class="nav-item active" onclick="goTo('index')">
         <text class="nav-icon">🏠</text>
-        <text class="nav-label">首页</text>
+        <text class="nav-label nav-label-active">首页</text>
       </div>
       <div class="nav-item" onclick="goTo('posture')">
         <text class="nav-icon">🏃</text>
@@ -102,10 +102,8 @@
 import router from '@system.router'
 import prompt from '@system.prompt'
 import { PostureEngine } from '../../core/posture-engine'
-import { getPostureName, getPostureIcon, POSTURE_TYPE } from '../../common/constants/postures'
+import { getPostureName, getPostureIcon } from '../../common/constants/postures'
 import { SecureStorage } from '../../storage/secure-storage'
-import { CryptoManager } from '../../privacy/crypto-manager'
-import { eventBus } from '../../common/event-bus'
 import { SensorMock } from '../../common/utils/sensor-mock'
 
 export default {
@@ -179,7 +177,19 @@ export default {
       this.engine = new PostureEngine({ sampleRate: 50, windowSize: 250 })
       await this.engine.init()
 
-      // 3. 设置引擎回调
+      // 3. 创建 Mock 传感器适配器（实现 onData 接口）
+      const mockSensorAdapter = {
+        dataCallback: null,
+        onData(callback) {
+          this.dataCallback = callback
+        },
+        emit(data) {
+          if (this.dataCallback) this.dataCallback(data)
+        },
+      }
+      this.engine.sensorInterface = mockSensorAdapter
+
+      // 4. 设置引擎回调
       this.engine.onResult = (filterResult, features) => {
         this._onPostureResult(filterResult, features)
       }
@@ -187,14 +197,14 @@ export default {
         this._onAlertEvent(eventType, event)
       }
 
-      // 4. 初始化 Mock 场景管理器
+      // 5. 初始化 Mock 场景管理器
       this.sensorMock = new SensorMock()
 
-      // 5. 注入默认场景并启动
+      // 6. 注入默认场景并启动
       this.sensorMock.injectScenario('mixed-daily')
       this.currentScenario = 'mixed-daily'
 
-      // 6. 启动引擎（Mock模式）
+      // 7. 启动引擎（Mock模式）
       this.engine.start({ mockMode: true })
       this._startMockStream()
 
@@ -219,7 +229,7 @@ export default {
     this.sensorMock.startStream((data) => {
       // 将 Mock 数据输入引擎
       if (this.engine && this.engine.sensorInterface) {
-        this.engine.sensorInterface._emitData(data)
+        this.engine.sensorInterface.emit(data)
       }
     })
 
@@ -246,7 +256,7 @@ export default {
       this.sensorMock.injectScenario(mappedScenario)
       this.sensorMock.startStream((data) => {
         if (this.engine && this.engine.sensorInterface) {
-          this.engine.sensorInterface._emitData(data)
+          this.engine.sensorInterface.emit(data)
         }
       })
     }
@@ -549,7 +559,7 @@ export default {
   padding: 6px 12px;
 }
 
-.nav-item.active .nav-label {
+.nav-label-active {
   color: #2979FF;
 }
 
