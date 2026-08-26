@@ -107,21 +107,21 @@
       </div>
       <div class="level-row">
         <div class="level-item">
-          <div class="level-badge l1">L1</div>
+          <div class="level-badge l1"><text class="level-badge-text">L1</text></div>
           <div class="level-info">
             <text class="level-name">AES-128-GCM</text>
             <text class="level-desc">30天留存</text>
           </div>
         </div>
         <div class="level-item">
-          <div class="level-badge l2">L2</div>
+          <div class="level-badge l2"><text class="level-badge-text">L2</text></div>
           <div class="level-info">
             <text class="level-name">AES-256-GCM</text>
             <text class="level-desc">7天留存</text>
           </div>
         </div>
         <div class="level-item">
-          <div class="level-badge l3">L3</div>
+          <div class="level-badge l3"><text class="level-badge-text">L3</text></div>
           <div class="level-info">
             <text class="level-name">AES-256+Shamir</text>
             <text class="level-desc">24h强制销毁</text>
@@ -142,7 +142,7 @@
       </div>
       <div class="nav-item active">
         <text class="nav-icon">🛡️</text>
-        <text class="nav-label">隐私</text>
+        <text class="nav-label nav-label-active">隐私</text>
       </div>
       <div class="nav-item" onclick="goTo('report')">
         <text class="nav-icon">📊</text>
@@ -173,7 +173,6 @@ import router from '@system.router'
 import prompt from '@system.prompt'
 import { LifecycleManager } from '../../privacy/lifecycle-manager'
 import { SecureStorage } from '../../storage/secure-storage'
-import { Desensitizer } from '../../privacy/desensitizer'
 import { eventBus } from '../../common/event-bus'
 
 export default {
@@ -576,6 +575,11 @@ export default {
 .level-badge.l2 { background-color: #e65100; }
 .level-badge.l3 { background-color: #b71c1c; }
 
+.level-badge-text {
+  font-size: 12px;
+  color: #ffffff;
+}
+
 .level-info {
   flex: 1;
   flex-direction: column;
@@ -608,7 +612,7 @@ export default {
   padding: 4px 10px;
 }
 
-.nav-item.active .nav-label {
+.nav-label-active {
   color: #2979FF;
 }
 

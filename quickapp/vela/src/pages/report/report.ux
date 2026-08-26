@@ -1,3 +1,7 @@
+<import name="pie-chart" src="../../common/components/pie-chart.ux"></import>
+<import name="bar-chart" src="../../common/components/bar-chart.ux"></import>
+<import name="line-chart" src="../../common/components/line-chart.ux"></import>
+
 <template>
   <div class="page">
     <!-- 顶部导航 -->
@@ -108,7 +112,7 @@
       </div>
       <div class="nav-item active">
         <text class="nav-icon">📊</text>
-        <text class="nav-label">报表</text>
+        <text class="nav-label nav-label-active">报表</text>
       </div>
       <div class="nav-item" onclick="goTo('settings')">
         <text class="nav-icon">⚙️</text>
@@ -416,7 +420,7 @@ export default {
   padding: 4px 10px;
 }
 
-.nav-item.active .nav-label {
+.nav-label-active {
   color: #2979FF;
 }
 
