@@ -199,13 +199,15 @@ class InferenceScheduler {
     if (!tensor) return
 
     // 推理
-    const output = this._model.infer(tensor)
-    if (!output) return
+    const probs = this._model.infer(tensor)
+    if (!probs) return
 
     // 后处理
-    const result = this._model.postprocess(output, 'classification')
-    if (result && this._onResult) {
-      this._onResult(result)
+    const result = this._model.postprocess(probs)
+    if (result) {
+      result.timestamp = Date.now()
+      result.modelType = this._model._modelType || 'unknown'
+      if (this._onResult) this._onResult(result)
     }
 
     this._lastInferTime = Date.now()

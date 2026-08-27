@@ -154,22 +154,27 @@ class Preprocessor {
   toTensor(features) {
     if (!features) return null
 
+    // 归一化到 [-1, 1] 范围（模拟 INT8 量化输入）
+    const norm = (v, range) => Math.max(-1, Math.min(1, v / range))
+
     return [
-      // 加速度均值 (3)
-      features.accMean.x, features.accMean.y, features.accMean.z,
-      // 加速度标准差 (3)
-      features.accStd.x, features.accStd.y, features.accStd.z,
-      // 加速度极值 (6)
-      features.accMin.x, features.accMin.y, features.accMin.z,
-      features.accMax.x, features.accMax.y, features.accMax.z,
-      // 陀螺仪均值 (3)
-      features.gyroMean.x, features.gyroMean.y, features.gyroMean.z,
-      // 陀螺仪标准差 (3)
-      features.gyroStd.x, features.gyroStd.y, features.gyroStd.z,
-      // 频域+统计 (3)
-      features.dominantFreq,
-      features.zeroCrossRate,
-      features.motionIntensity,
+      // 加速度均值 (3) — 范围 ±20 m/s²
+      norm(features.accMean.x, 20), norm(features.accMean.y, 20), norm(features.accMean.z, 20),
+      // 加速度标准差 (3) — 范围 0~10
+      norm(features.accStd.x, 10), norm(features.accStd.y, 10), norm(features.accStd.z, 10),
+      // 加速度极值 (6) — 范围 ±20
+      norm(features.accMin.x, 20), norm(features.accMin.y, 20), norm(features.accMin.z, 20),
+      norm(features.accMax.x, 20), norm(features.accMax.y, 20), norm(features.accMax.z, 20),
+      // 陀螺仪均值 (3) — 范围 ±10 rad/s
+      norm(features.gyroMean.x, 10), norm(features.gyroMean.y, 10), norm(features.gyroMean.z, 10),
+      // 陀螺仪标准差 (3) — 范围 0~5
+      norm(features.gyroStd.x, 5), norm(features.gyroStd.y, 5), norm(features.gyroStd.z, 5),
+      // 主频率 (1) — 范围 0~25 Hz
+      norm(features.dominantFreq, 25),
+      // 过零率 (1) — 范围 0~1
+      features.zeroCrossRate * 2 - 1,
+      // 运动强度 (1) — 范围 0~10
+      norm(features.motionIntensity, 10),
     ]
   }
 
