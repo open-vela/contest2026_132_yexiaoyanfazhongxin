@@ -1,0 +1,233 @@
+<template>
+  <div class="page">
+    <div class="header">
+      <div class="back-btn" onclick="goBack">
+        <text class="back-icon">←</text>
+      </div>
+      <text class="title">历史记录</text>
+      <div class="time-range" onclick="toggleRange">
+        <text class="time-range-text">{{ rangeLabel }}</text>
+      </div>
+    </div>
+
+    <!-- 每日体态分布 -->
+    <div class="chart-card">
+      <div class="card-header">
+        <text class="card-title">📊 体态分布</text>
+        <text class="card-sub">{{ today }}</text>
+      </div>
+      <pie-chart data="{{ distribution }}" size="130"></pie-chart>
+    </div>
+
+    <!-- 7日趋势 -->
+    <div class="chart-card">
+      <div class="card-header">
+        <text class="card-title">📈 7日评分趋势</text>
+      </div>
+      <line-chart
+        data="{{ trendData }}"
+        labels="{{ trendLabels }}"
+        width="400"
+        height="100"
+        lineColor="#00C853"
+      ></line-chart>
+    </div>
+
+    <!-- 统计摘要 -->
+    <div class="stats-card">
+      <div class="stat-row" for="{{ statsSummary }}">
+        <text class="stat-icon">{{ $item.icon }}</text>
+        <text class="stat-label">{{ $item.label }}</text>
+        <text class="stat-value">{{ $item.value }}</text>
+      </div>
+    </div>
+
+    <!-- 底部导航 -->
+    <div class="bottom-nav">
+      <div class="nav-item" onclick="goTo('index')">
+        <text class="nav-icon">🏠</text>
+        <text class="nav-label">首页</text>
+      </div>
+      <div class="nav-item active">
+        <text class="nav-icon">📊</text>
+        <text class="nav-label">历史</text>
+      </div>
+      <div class="nav-item" onclick="goTo('settings')">
+        <text class="nav-icon">⚙️</text>
+        <text class="nav-label">设置</text>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router'
+import { DataStore } from '../../storage/data-store'
+import { POSE_TYPE } from '../../ai/pose-model'
+
+const POSE_LABELS = {
+  [POSE_TYPE.STANDARD_SIT]: '标准坐姿',
+  [POSE_TYPE.HUNCHED_SIT]: '驼背坐姿',
+  [POSE_TYPE.STANDARD_STAND]: '标准站姿',
+  [POSE_TYPE.WALKING]: '行走',
+  [POSE_TYPE.RUNNING]: '跑步',
+  [POSE_TYPE.STILL]: '静止',
+  [POSE_TYPE.UNKNOWN]: '未知',
+}
+
+const POSE_COLORS = {
+  [POSE_TYPE.STANDARD_SIT]: '#00C853',
+  [POSE_TYPE.HUNCHED_SIT]: '#FF9800',
+  [POSE_TYPE.STANDARD_STAND]: '#2979FF',
+  [POSE_TYPE.WALKING]: '#9C27B0',
+  [POSE_TYPE.RUNNING]: '#FF1744',
+  [POSE_TYPE.STILL]: '#607D8B',
+  [POSE_TYPE.UNKNOWN]: '#999999',
+}
+
+export default {
+  private: {
+    today: '',
+    rangeLabel: '近7天',
+    distribution: [],
+    trendData: [],
+    trendLabels: [],
+    statsSummary: [
+      { icon: '📊', label: '总记录', value: '0' },
+      { icon: '✅', label: '正常率', value: '0%' },
+      { icon: '⚠️', label: '异常次数', value: '0' },
+    ],
+    _dataStore: null,
+  },
+
+  async onReady() {
+    this._setToday()
+    this._dataStore = new DataStore()
+    await this._dataStore.init()
+    this._loadData()
+  },
+
+  _setToday() {
+    const now = new Date()
+    this.today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  },
+
+  async _loadData() {
+    // 加载今日分布
+    const todayStats = await this._dataStore.getDailyStats()
+    const dist = []
+    let total = 0
+    for (const [pose, count] of Object.entries(todayStats.distribution || {})) {
+      dist.push({ label: POSE_LABELS[pose] || pose, value: count, color: POSE_COLORS[pose] || '#666' })
+      total += count
+    }
+    this.distribution = dist.length > 0 ? dist : [{ label: '暂无数据', value: 1, color: '#333' }]
+
+    // 统计摘要
+    const normalCount = (todayStats.distribution || {})[POSE_TYPE.STANDARD_SIT] || 0
+      + (todayStats.distribution || {})[POSE_TYPE.STANDARD_STAND] || 0
+    const normalRate = total > 0 ? Math.round(normalCount / total * 100) : 0
+
+    this.statsSummary = [
+      { icon: '📊', label: '总记录', value: String(total) },
+      { icon: '✅', label: '正常率', value: normalRate + '%' },
+      { icon: '⚠️', label: '异常次数', value: String(total - normalCount) },
+    ]
+
+    // 7日趋势
+    const weekly = await this._dataStore.getWeeklyStats(7)
+    this.trendData = weekly.map(d => d.total > 0 ? Math.round(d.avgConfidence * 100) : 0)
+    this.trendLabels = weekly.map(d => d.date.slice(5))
+  },
+
+  toggleRange() {
+    // 简化：仅显示近7天
+  },
+
+  goTo(page) {
+    router.push({ uri: `/pages/${page}/${page}` })
+  },
+
+  goBack() {
+    router.back()
+  },
+}
+</script>
+
+<style>
+.page {
+  flex-direction: column;
+  width: 480px;
+  height: 480px;
+  background-color: #0a0a0a;
+}
+
+.header {
+  width: 100%;
+  height: 44px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  background-color: #1a1a2e;
+}
+
+.back-btn { width: 30px; height: 30px; justify-content: center; align-items: center; }
+.back-icon { font-size: 20px; color: #ffffff; }
+.title { font-size: 16px; color: #ffffff; font-weight: bold; }
+.time-range { padding: 4px 10px; background-color: #2979FF; border-radius: 10px; }
+.time-range-text { font-size: 11px; color: #ffffff; }
+
+.chart-card {
+  margin: 6px 12px;
+  padding: 10px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+  align-items: center;
+}
+
+.card-header {
+  flex-direction: row;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.card-title { font-size: 13px; color: #ffffff; font-weight: bold; }
+.card-sub { font-size: 11px; color: #666666; }
+
+.stats-card {
+  margin: 6px 12px;
+  padding: 10px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+}
+
+.stat-row {
+  flex-direction: row;
+  align-items: center;
+  padding: 6px 0;
+  border-bottom-width: 1px;
+  border-bottom-color: #2a2a4e;
+}
+
+.stat-row:last-child { border-bottom-width: 0; }
+.stat-icon { font-size: 16px; margin-right: 8px; }
+.stat-label { font-size: 12px; color: #888888; flex: 1; }
+.stat-value { font-size: 14px; color: #ffffff; font-weight: bold; }
+
+.bottom-nav {
+  flex: 1;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  background-color: #1a1a2e;
+  border-top-width: 1px;
+  border-top-color: #2a2a4e;
+}
+
+.nav-item { flex-direction: column; align-items: center; padding: 4px 10px; }
+.nav-item.active .nav-label { color: #2979FF; }
+.nav-icon { font-size: 18px; }
+.nav-label { font-size: 9px; color: #888888; margin-top: 2px; }
+</style>

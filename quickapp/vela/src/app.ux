@@ -1,61 +1,20 @@
-<template>
-  <div>
-    <slot></slot>
-  </div>
-</template>
-
-<script>
 /**
- * 体态安全卫士 - 应用入口
+ * app.ux — 应用入口
  *
- * 全局生命周期管理：
- * - onCreate: 初始化全局数据、Mock场景管理器
- * - onDestroy: 清理资源、停止传感器订阅
+ * 初始化 AI 服务和全局状态。
  */
-
-import { DEFAULT_STRATEGY } from './common/constants/sampling-config'
-import { SensorMock } from './common/utils/sensor-mock'
 
 export default {
   globalData: {
-    samplingStrategy: DEFAULT_STRATEGY,
+    aiInitialized: false,
     mockMode: true,
-    sensorMock: null,
-    currentMockScenario: null,
-    postureState: {
-      current: 'normal',
-      confidence: 1.0,
-      lastAlertTime: 0,
-      dailyAlertCount: 0,
-    },
-    bgMonitorStarted: false,
   },
 
   onCreate() {
-    console.log('[App] onCreate - 体态安全卫士启动')
-    this.globalData.sensorMock = new SensorMock()
-    this.globalData.postureState = {
-      current: 'normal',
-      confidence: 1.0,
-      lastAlertTime: 0,
-      dailyAlertCount: 0,
-    }
-    this.globalData.bgMonitorStarted = false
-    console.log('[App] Mock mode:', this.globalData.mockMode ? 'enabled' : 'disabled')
+    console.log('[App] onCreate')
   },
 
   onDestroy() {
-    console.log('[App] onDestroy - 清理资源')
-    if (this.globalData.sensorMock) {
-      this.globalData.sensorMock.stopStream()
-    }
-    this.globalData.bgMonitorStarted = false
+    console.log('[App] onDestroy')
   },
 }
-</script>
-
-<style>
-div {
-  flex-direction: column;
-}
-</style>

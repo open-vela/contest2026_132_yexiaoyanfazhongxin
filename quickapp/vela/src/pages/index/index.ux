@@ -1,33 +1,46 @@
 <template>
   <div class="page">
-    <!-- 顶部系统状态 -->
+    <!-- 顶部状态栏 -->
     <div class="top-bar">
       <div class="status-dot {{ systemStatus }}"></div>
       <text class="status-text">{{ systemStatusText }}</text>
+      <text class="model-badge">{{ modelType }}</text>
       <text class="mock-badge" if="{{ mockMode }}">Mock</text>
     </div>
 
     <!-- 健康评分区 -->
     <div class="score-section">
-      <text class="score-value {{ healthScoreClass }}">{{ healthScore }}</text>
+      <text class="score-value {{ scoreClass }}">{{ healthScore }}</text>
       <text class="score-label">健康评分</text>
     </div>
 
     <!-- 当前体态状态 -->
     <div class="posture-card">
-      <text class="posture-emoji">{{ currentPostureIcon }}</text>
+      <text class="posture-emoji">{{ currentIcon }}</text>
       <div class="posture-info">
-        <text class="posture-type">{{ currentPostureType }}</text>
-        <text class="posture-detail">置信度 {{ currentConfidence }}% · {{ currentDuration }}秒</text>
+        <text class="posture-type">{{ currentPosture }}</text>
+        <text class="posture-detail">置信度 {{ confidence }}% · {{ motionState === 'active' ? '活动中' : '静止中' }}</text>
       </div>
+      <div class="motion-dot {{ motionState }}"></div>
     </div>
 
-    <!-- 今日异常统计 -->
-    <div class="stats-row">
-      <div class="stat-item" for="{{ todayAnomalies }}">
-        <text class="stat-icon">{{ $item.icon }}</text>
-        <text class="stat-count">{{ $item.count }}</text>
-        <text class="stat-name">{{ $item.name }}</text>
+    <!-- 实时数据面板 -->
+    <div class="data-panel">
+      <div class="data-row">
+        <text class="data-label">推理间隔</text>
+        <text class="data-value">{{ inferInterval }}ms</text>
+      </div>
+      <div class="data-row">
+        <text class="data-label">采样率</text>
+        <text class="data-value">{{ sampleRate }}Hz</text>
+      </div>
+      <div class="data-row">
+        <text class="data-label">缓冲区</text>
+        <text class="data-value">{{ bufferCount }}/500</text>
+      </div>
+      <div class="data-row">
+        <text class="data-label">功耗模式</text>
+        <text class="data-value">{{ powerMode }}</text>
       </div>
     </div>
 
@@ -35,48 +48,34 @@
     <div class="mock-section">
       <text class="section-label">模拟场景</text>
       <div class="mock-btns">
-        <div class="mock-btn {{ currentScenario === 'normal' ? 'active' : '' }}"
-             onclick="switchScenario('normal')">
-          <text class="mock-btn-text">😊 正常</text>
+        <div class="mock-btn {{ currentScenario === 'standard_sit' ? 'active' : '' }}"
+             onclick="switchScenario('standard_sit')">
+          <text class="mock-btn-text">🪑 坐姿</text>
         </div>
-        <div class="mock-btn {{ currentScenario === 'sedentary' ? 'active' : '' }}"
-             onclick="switchScenario('sedentary')">
-          <text class="mock-btn-text">🪑 久坐</text>
+        <div class="mock-btn {{ currentScenario === 'hunched_sit' ? 'active' : '' }}"
+             onclick="switchScenario('hunched_sit')">
+          <text class="mock-btn-text">😮‍💨 驼背</text>
         </div>
-        <div class="mock-btn {{ currentScenario === 'headDown' ? 'active' : '' }}"
-             onclick="switchScenario('headDown')">
-          <text class="mock-btn-text">📱 低头</text>
+        <div class="mock-btn {{ currentScenario === 'walking' ? 'active' : '' }}"
+             onclick="switchScenario('walking')">
+          <text class="mock-btn-text">🚶 行走</text>
         </div>
-        <div class="mock-btn {{ currentScenario === 'crossLeg' ? 'active' : '' }}"
-             onclick="switchScenario('crossLeg')">
-          <text class="mock-btn-text">🦵 跷腿</text>
+        <div class="mock-btn {{ currentScenario === 'running' ? 'active' : '' }}"
+             onclick="switchScenario('running')">
+          <text class="mock-btn-text">🏃 跑步</text>
         </div>
       </div>
-    </div>
-
-    <!-- 加密状态 -->
-    <div class="encrypt-bar">
-      <text class="encrypt-icon">🔐</text>
-      <text class="encrypt-text">数据已加密 · AES-{{ encryptLevel }} · {{ encryptedFiles }}个文件</text>
     </div>
 
     <!-- 底部导航栏 -->
     <div class="bottom-nav">
       <div class="nav-item active" onclick="goTo('index')">
         <text class="nav-icon">🏠</text>
-        <text class="nav-label nav-label-active">首页</text>
+        <text class="nav-label">首页</text>
       </div>
-      <div class="nav-item" onclick="goTo('posture')">
-        <text class="nav-icon">🏃</text>
-        <text class="nav-label">体态</text>
-      </div>
-      <div class="nav-item" onclick="goTo('privacy')">
-        <text class="nav-icon">🛡️</text>
-        <text class="nav-label">隐私</text>
-      </div>
-      <div class="nav-item" onclick="goTo('report')">
+      <div class="nav-item" onclick="goTo('history')">
         <text class="nav-icon">📊</text>
-        <text class="nav-label">报表</text>
+        <text class="nav-label">历史</text>
       </div>
       <div class="nav-item" onclick="goTo('settings')">
         <text class="nav-icon">⚙️</text>
@@ -90,21 +89,15 @@
 /**
  * 首页仪表盘
  *
- * 功能：
- * - 健康评分实时展示
- * - 当前体态状态（图标+名称+置信度+持续时间）
- * - 今日异常统计（久坐/低头/跷腿次数）
- * - Mock 场景快速切换
- * - 加密状态展示
- * - 底部导航栏
+ * 集成新的 AI Feature 接口，展示实时体态识别结果。
+ * 支持 Mock 场景切换和自适应推理频率展示。
  */
 
 import router from '@system.router'
-import prompt from '@system.prompt'
-import { PostureEngine } from '../../core/posture-engine'
-import { getPostureName, getPostureIcon } from '../../common/constants/postures'
-import { SecureStorage } from '../../storage/secure-storage'
-import { SensorMock } from '../../common/utils/sensor-mock'
+import { aiPose } from '../../ai/ai-pose-feature'
+import { PRESET_SCENARIOS, POSE_TYPE } from '../../mock/imu-scenarios'
+import { POSE_NAME, POSE_ICON } from '../../ai/pose-model'
+import { PowerManager, POWER_MODE } from '../../power/power-manager'
 
 export default {
   private: {
@@ -114,246 +107,121 @@ export default {
 
     // 健康评分
     healthScore: 85,
-    healthScoreClass: 'score-good',
+    scoreClass: 'score-good',
 
     // 当前体态
-    currentPostureIcon: '⏳',
-    currentPostureType: '等待数据...',
-    currentConfidence: 0,
-    currentDuration: 0,
+    currentIcon: '⏳',
+    currentPosture: '等待数据...',
+    confidence: 0,
+    motionState: 'static',
 
-    // 今日统计
-    todayAnomalies: [
-      { icon: '🪑', name: '久坐', count: 0, type: 'sedentary' },
-      { icon: '📱', name: '低头', count: 0, type: 'forward_tilt' },
-      { icon: '🦵', name: '跷腿', count: 0, type: 'cross_leg' },
-    ],
+    // 推理状态
+    inferInterval: 5000,
+    sampleRate: 50,
+    bufferCount: 0,
+    powerMode: '正常',
 
-    // Mock 场景
-    currentScenario: 'normal',
+    // Mock
     mockMode: true,
+    currentScenario: 'standard_sit',
+    modelType: 'static_cnn',
 
-    // 加密状态
-    encryptLevel: '128-GCM',
-    encryptedFiles: 0,
-
-    // 引擎实例
-    engine: null,
-    secureStorage: null,
-    sensorMock: null,
-
-    // 定时器
-    refreshTimer: null,
-    postureTimer: null,
+    // 引擎
+    _powerManager: null,
+    _refreshTimer: null,
   },
 
   onReady() {
     console.log('[Index] onReady')
-    this._initModules()
-    this._startAutoRefresh()
+    this._powerManager = new PowerManager()
+    this._powerManager.onModeChange((newMode) => {
+      const cfg = this._powerManager.getCurrentConfig()
+      this.inferInterval = cfg.inferInterval
+      this.sampleRate = cfg.sampleRate
+      this.powerMode = cfg.description
+    })
+    this._initAI()
   },
 
   onDestroy() {
-    console.log('[Index] onDestroy')
-    if (this.engine) this.engine.stop()
-    if (this.refreshTimer) clearInterval(this.refreshTimer)
-    if (this.postureTimer) clearInterval(this.postureTimer)
+    aiPose.stopRecognition()
+    if (this._refreshTimer) clearInterval(this._refreshTimer)
   },
 
-  /**
-   * 初始化所有模块
-   * @private
-   */
-  async _initModules() {
-    try {
-      // 1. 初始化安全存储
-      this.secureStorage = new SecureStorage()
-      await this.secureStorage.init({
-        deviceId: 'mock-device-001',
-        userPin: '1234',
-      })
+  async _initAI() {
+    const mockSource = PRESET_SCENARIOS['office-1h']()
 
-      // 2. 初始化体态引擎
-      this.engine = new PostureEngine({ sampleRate: 50, windowSize: 250 })
-      await this.engine.init()
-
-      // 3. 创建 Mock 传感器适配器（实现 onData 接口）
-      const mockSensorAdapter = {
-        dataCallback: null,
-        onData(callback) {
-          this.dataCallback = callback
-        },
-        emit(data) {
-          if (this.dataCallback) this.dataCallback(data)
-        },
-      }
-      this.engine.sensorInterface = mockSensorAdapter
-
-      // 4. 设置引擎回调
-      this.engine.onResult = (filterResult, features) => {
-        this._onPostureResult(filterResult, features)
-      }
-      this.engine.onEvent = (eventType, event) => {
-        this._onAlertEvent(eventType, event)
-      }
-
-      // 5. 初始化 Mock 场景管理器
-      this.sensorMock = new SensorMock()
-
-      // 6. 注入默认场景并启动
-      this.sensorMock.injectScenario('mixed-daily')
-      this.currentScenario = 'mixed-daily'
-
-      // 7. 启动引擎（Mock模式）
-      this.engine.start({ mockMode: true })
-      this._startMockStream()
-
-      // 7. 加载存储统计
-      this._loadStorageStats()
-
-      this._updateSystemStatus('ok')
-      console.log('[Index] All modules initialized')
-    } catch (error) {
-      console.error('[Index] Init failed:', error)
-      this._updateSystemStatus('error')
-    }
-  },
-
-  /**
-   * 启动 Mock 数据流
-   * @private
-   */
-  _startMockStream() {
-    if (!this.sensorMock) return
-
-    this.sensorMock.startStream((data) => {
-      // 将 Mock 数据输入引擎
-      if (this.engine && this.engine.sensorInterface) {
-        this.engine.sensorInterface.emit(data)
-      }
+    const ok = await aiPose.init({
+      modelType: 'static_cnn',
+      mockSource: mockSource,
     })
 
-    console.log('[Index] Mock stream started')
-  },
-
-  /**
-   * 切换 Mock 场景
-   * @param {string} scenario - 场景名称
-   */
-  switchScenario(scenario) {
-    // 场景名称映射
-    const scenarioMap = {
-      'normal': 'mixed-daily',
-      'sedentary': 'sedentary-2h',
-      'headDown': 'office-work-1h',
-      'crossLeg': 'cross-leg-30m',
+    if (!ok) {
+      this._updateStatus('error')
+      return
     }
 
-    const mappedScenario = scenarioMap[scenario] || scenario
+    // 启动识别
+    aiPose.startRecognition({
+      success: (result) => this._onResult(result),
+      fail: (err) => {
+        console.error('[Index] Recognition failed:', err)
+        this._updateStatus('error')
+      },
+    })
 
-    if (this.sensorMock) {
-      this.sensorMock.stopStream()
-      this.sensorMock.injectScenario(mappedScenario)
-      this.sensorMock.startStream((data) => {
-        if (this.engine && this.engine.sensorInterface) {
-          this.engine.sensorInterface.emit(data)
-        }
-      })
-    }
+    // 定时刷新状态
+    this._refreshTimer = setInterval(() => {
+      this._refreshStatus()
+    }, 1000)
 
-    this.currentScenario = scenario
-    prompt.showToast({ message: `已切换到${getPostureName(scenario) || scenario}场景` })
+    this._updateStatus('ok')
   },
 
-  /**
-   * 加载存储统计
-   * @private
-   */
-  async _loadStorageStats() {
-    try {
-      const stats = await this.secureStorage.getStats()
-      if (stats) {
-        this.encryptedFiles = stats.totalFiles || 0
-      }
-    } catch (e) {
-      console.log('[Index] Storage stats not available')
-    }
-  },
-
-  /**
-   * 体态识别结果回调
-   * @private
-   */
-  _onPostureResult(filterResult, features) {
-    this.currentPostureIcon = getPostureIcon(filterResult.posture)
-    this.currentPostureType = getPostureName(filterResult.posture)
-    this.currentConfidence = Math.round(filterResult.confidence * 100)
-    this.currentDuration = Math.round(filterResult.duration)
+  _onResult(result) {
+    this.currentIcon = POSE_ICON[result.pose] || '❓'
+    this.currentPosture = POSE_NAME[result.pose] || '未知'
+    this.confidence = Math.round(result.confidence * 100)
+    this.motionState = result.confidence > 0.7 ? 'active' : 'static'
 
     // 更新健康评分
-    if (filterResult.posture !== POSTURE_TYPE.NORMAL && filterResult.confirmed) {
-      this.healthScore = Math.max(0, this.healthScore - 1)
-    } else if (filterResult.posture === POSTURE_TYPE.NORMAL) {
-      this.healthScore = Math.min(100, this.healthScore + 0.3)
+    if (result.pose !== POSE_TYPE.STANDARD_SIT && result.pose !== POSE_TYPE.STANDARD_STAND) {
+      this.healthScore = Math.max(0, this.healthScore - 0.5)
+    } else {
+      this.healthScore = Math.min(100, this.healthScore + 0.2)
     }
     this._updateScoreClass()
   },
 
-  /**
-   * 提醒事件回调
-   * @private
-   */
-  _onAlertEvent(eventType, event) {
-    if (!event || !event.posture) return
-
-    // 更新对应类型的计数
-    for (let i = 0; i < this.todayAnomalies.length; i++) {
-      if (this.todayAnomalies[i].type === event.posture) {
-        this.todayAnomalies[i].count++
-        break
-      }
+  _refreshStatus() {
+    const pose = aiPose.getCurrentPose()
+    if (pose) {
+      this.confidence = Math.round(pose.confidence * 100)
     }
   },
 
-  /**
-   * 更新评分颜色
-   * @private
-   */
+  switchScenario(type) {
+    const generator = new (require('../../mock/imu-scenarios').IMUScenarioGenerator)(type)
+    aiPose.setMockSource(generator)
+    aiPose.stopRecognition()
+    aiPose.startRecognition({
+      success: (result) => this._onResult(result),
+    })
+    this.currentScenario = type
+  },
+
   _updateScoreClass() {
-    if (this.healthScore >= 80) {
-      this.healthScoreClass = 'score-good'
-    } else if (this.healthScore >= 60) {
-      this.healthScoreClass = 'score-warn'
-    } else {
-      this.healthScoreClass = 'score-danger'
-    }
+    if (this.healthScore >= 80) this.scoreClass = 'score-good'
+    else if (this.healthScore >= 60) this.scoreClass = 'score-warn'
+    else this.scoreClass = 'score-danger'
   },
 
-  /**
-   * 更新系统状态
-   * @private
-   */
-  _updateSystemStatus(status) {
+  _updateStatus(status) {
     this.systemStatus = status
     this.systemStatusText = status === 'ok' ? '系统正常' : '系统异常'
   },
 
-  /**
-   * 自动刷新
-   * @private
-   */
-  _startAutoRefresh() {
-    this.refreshTimer = setInterval(() => {
-      this._loadStorageStats()
-    }, 30000)
-  },
-
-  /**
-   * 页面导航
-   * @param {string} page - 页面名称
-   */
   goTo(page) {
-    if (page === 'index') return
     router.push({ uri: `/pages/${page}/${page}` })
   },
 }
@@ -367,12 +235,11 @@ export default {
   background-color: #0a0a0a;
 }
 
-/* 顶部状态栏 */
 .top-bar {
   width: 100%;
   flex-direction: row;
   align-items: center;
-  padding: 8px 16px;
+  padding: 6px 12px;
   background-color: #1a1a2e;
 }
 
@@ -392,6 +259,15 @@ export default {
   flex: 1;
 }
 
+.model-badge {
+  font-size: 10px;
+  color: #2979FF;
+  background-color: rgba(41, 121, 255, 0.15);
+  padding: 2px 8px;
+  border-radius: 8px;
+  margin-right: 6px;
+}
+
 .mock-badge {
   font-size: 10px;
   color: #FFD600;
@@ -400,15 +276,14 @@ export default {
   border-radius: 8px;
 }
 
-/* 健康评分 */
 .score-section {
   flex-direction: column;
   align-items: center;
-  padding: 12px 0 8px;
+  padding: 8px 0 4px;
 }
 
 .score-value {
-  font-size: 52px;
+  font-size: 48px;
   font-weight: bold;
 }
 
@@ -417,16 +292,14 @@ export default {
 .score-danger { color: #FF1744; }
 
 .score-label {
-  font-size: 13px;
+  font-size: 12px;
   color: #888888;
-  margin-top: -4px;
 }
 
-/* 当前体态 */
 .posture-card {
   flex-direction: row;
   align-items: center;
-  margin: 0 16px 8px;
+  margin: 0 12px 6px;
   padding: 10px 14px;
   background-color: #1a1a2e;
   border-radius: 10px;
@@ -454,50 +327,49 @@ export default {
   margin-top: 2px;
 }
 
-/* 统计行 */
-.stats-row {
-  flex-direction: row;
-  justify-content: space-around;
-  margin: 0 16px 8px;
+.motion-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
 }
 
-.stat-item {
-  flex-direction: column;
-  align-items: center;
+.motion-dot.active { background-color: #00C853; }
+.motion-dot.static { background-color: #FF9800; }
+
+.data-panel {
+  margin: 0 12px 6px;
+  padding: 8px 12px;
   background-color: #1a1a2e;
   border-radius: 8px;
-  padding: 8px 16px;
-  width: 30%;
 }
 
-.stat-icon {
-  font-size: 18px;
-  margin-bottom: 4px;
+.data-row {
+  flex-direction: row;
+  justify-content: space-between;
+  padding: 3px 0;
 }
 
-.stat-count {
-  font-size: 20px;
-  color: #ffffff;
-  font-weight: bold;
-}
-
-.stat-name {
+.data-label {
   font-size: 11px;
-  color: #888888;
+  color: #666666;
 }
 
-/* Mock 场景切换 */
+.data-value {
+  font-size: 11px;
+  color: #ffffff;
+}
+
 .mock-section {
-  margin: 0 16px 8px;
-  padding: 10px;
+  margin: 0 12px 6px;
+  padding: 8px 10px;
   background-color: #1a1a2e;
-  border-radius: 10px;
+  border-radius: 8px;
 }
 
 .section-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #666666;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .mock-btns {
@@ -506,9 +378,9 @@ export default {
 }
 
 .mock-btn {
-  padding: 6px 10px;
+  padding: 5px 8px;
   background-color: #2a2a4e;
-  border-radius: 8px;
+  border-radius: 6px;
   align-items: center;
   justify-content: center;
 }
@@ -518,31 +390,10 @@ export default {
 }
 
 .mock-btn-text {
-  font-size: 12px;
+  font-size: 11px;
   color: #ffffff;
 }
 
-/* 加密状态 */
-.encrypt-bar {
-  flex-direction: row;
-  align-items: center;
-  margin: 0 16px 8px;
-  padding: 8px 12px;
-  background-color: #0d3320;
-  border-radius: 8px;
-}
-
-.encrypt-icon {
-  font-size: 14px;
-  margin-right: 8px;
-}
-
-.encrypt-text {
-  font-size: 11px;
-  color: #4CAF50;
-}
-
-/* 底部导航 */
 .bottom-nav {
   flex: 1;
   flex-direction: row;
@@ -556,19 +407,19 @@ export default {
 .nav-item {
   flex-direction: column;
   align-items: center;
-  padding: 6px 12px;
+  padding: 4px 12px;
 }
 
-.nav-label-active {
+.nav-item.active .nav-label {
   color: #2979FF;
 }
 
 .nav-icon {
-  font-size: 20px;
+  font-size: 18px;
 }
 
 .nav-label {
-  font-size: 10px;
+  font-size: 9px;
   color: #888888;
   margin-top: 2px;
 }
