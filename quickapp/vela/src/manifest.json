@@ -56,14 +56,8 @@
       "pages/index": {
         "component": "index"
       },
-      "pages/posture": {
-        "component": "posture"
-      },
-      "pages/privacy": {
-        "component": "privacy"
-      },
-      "pages/report": {
-        "component": "report"
+      "pages/history": {
+        "component": "history"
       },
       "pages/settings": {
         "component": "settings"
