@@ -1,20 +1,14 @@
-/**
- * app.ux — 应用入口
- *
- * 初始化 AI 服务和全局状态。
- */
-
-export default {
+module.exports = {
   globalData: {
     aiInitialized: false,
     mockMode: true,
   },
 
-  onCreate() {
+  onCreate: function () {
     console.log('[App] onCreate')
   },
 
-  onDestroy() {
+  onDestroy: function () {
     console.log('[App] onDestroy')
   },
 }
