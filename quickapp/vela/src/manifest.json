@@ -10,38 +10,17 @@
     "watch"
   ],
   "features": [
-    {
-      "name": "system.sensor"
-    },
-    {
-      "name": "system.storage"
-    },
-    {
-      "name": "system.crypto"
-    },
-    {
-      "name": "system.vibrator"
-    },
-    {
-      "name": "system.prompt"
-    },
-    {
-      "name": "system.router"
-    },
-    {
-      "name": "system.configuration"
-    },
-    {
-      "name": "service.health"
-    }
-  ],
-  "permissions": [
-    {
-      "name": "hapjs.permission.HEALTH"
-    }
+    { "name": "system.router" },
+    { "name": "system.prompt" },
+    { "name": "system.storage" },
+    { "name": "system.sensor" },
+    { "name": "system.vibrator" },
+    { "name": "system.crypto" },
+    { "name": "system.configuration" },
+    { "name": "service.health" }
   ],
   "config": {
-    "logLevel": "log",
+    "logLevel": "debug",
     "designWidth": 480,
     "background": {
       "features": [
