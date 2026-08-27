@@ -95,7 +95,7 @@
 
 import router from '@system.router'
 import { aiPose } from '../../ai/ai-pose-feature'
-import { PRESET_SCENARIOS, POSE_TYPE } from '../../mock/imu-scenarios'
+import { PRESET_SCENARIOS, POSE_TYPE, IMUScenarioGenerator } from '../../mock/imu-scenarios'
 import { POSE_NAME, POSE_ICON } from '../../ai/pose-model'
 import { PowerManager, POWER_MODE } from '../../power/power-manager'
 
@@ -201,7 +201,7 @@ export default {
   },
 
   switchScenario(type) {
-    const generator = new (require('../../mock/imu-scenarios').IMUScenarioGenerator)(type)
+    const generator = new IMUScenarioGenerator(type)
     aiPose.setMockSource(generator)
     aiPose.stopRecognition()
     aiPose.startRecognition({

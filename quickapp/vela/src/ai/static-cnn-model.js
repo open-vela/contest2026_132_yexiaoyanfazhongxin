@@ -31,21 +31,21 @@ const CLASS_ORDER = [
  * 真实场景中这些权重来自训练好的 CNN 模型
  */
 const CLASSIFICATION_RULES = {
-  // 运动强度阈值
-  MOTION_WALKING: 0.8,
-  MOTION_RUNNING: 2.5,
-  MOTION_STILL: 0.15,
+  // 运动强度阈值（归一化后）
+  MOTION_WALKING: 0.08,   // 原始 ~0.8 / 10
+  MOTION_RUNNING: 0.25,   // 原始 ~2.5 / 10
+  MOTION_STILL: 0.015,    // 原始 ~0.15 / 10
 
-  // 加速度 Z 轴特征（坐姿 vs 站姿）
-  ACC_Z_SIT: -7.0,   // 坐姿时 Z 轴绝对值较小
-  ACC_Z_STAND: -9.0,  // 站姿时 Z 轴接近重力
+  // 加速度 Z 轴特征（归一化后，坐姿 vs 站姿）
+  ACC_Z_SIT: -0.35,       // 原始 ~-7.0 / 20
+  ACC_Z_STAND: -0.45,     // 原始 ~-9.0 / 20
 
-  // 陀螺仪俯仰角（驼背检测）
-  GYRO_PITCH_HUNCH: -15,  // 低头/驼背时俯仰角负值更大
+  // 陀螺仪俯仰角（归一化后）
+  GYRO_PITCH_HUNCH: -0.15, // 原始 ~-1.5 / 10
 
-  // 主频率（行走/跑步区分）
-  FREQ_WALKING: 1.5,
-  FREQ_RUNNING: 2.5,
+  // 主频率（归一化后）
+  FREQ_WALKING: 0.06,     // 原始 ~1.5 / 25
+  FREQ_RUNNING: 0.1,      // 原始 ~2.5 / 25
 }
 
 class StaticCNNModel extends PoseModel {
@@ -87,14 +87,14 @@ class StaticCNNModel extends PoseModel {
       return [0, 0, 0, 0, 0, 0, 1]  // 默认 unknown
     }
 
-    // 提取关键特征
-    const accMeanZ = inputTensor[2] * 10   // 还原归一化
-    const accStdX = inputTensor[3] * 10
-    const accStdY = inputTensor[4] * 10
-    const accStdZ = inputTensor[5] * 10
-    const gyroMeanY = inputTensor[13] * 10
-    const dominantFreq = inputTensor[18] * 10
-    const motionIntensity = inputTensor[20] * 10
+    // 提取关键特征（已归一化到 [-1, 1]）
+    const accMeanZ = inputTensor[2]     // 加速度 Z 轴均值
+    const accStdX = inputTensor[3]      // 加速度 X 轴标准差
+    const accStdY = inputTensor[4]      // 加速度 Y 轴标准差
+    const accStdZ = inputTensor[5]      // 加速度 Z 轴标准差
+    const gyroMeanY = inputTensor[13]   // 陀螺仪 Y 轴均值（俯仰）
+    const dominantFreq = inputTensor[18] // 主频率
+    const motionIntensity = inputTensor[20] // 运动强度
 
     // 计算各类别得分
     const scores = [0, 0, 0, 0, 0, 0, 0]
