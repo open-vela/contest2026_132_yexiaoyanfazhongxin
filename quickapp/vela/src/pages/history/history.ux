@@ -5,40 +5,49 @@
         <text class="back-icon">←</text>
       </div>
       <text class="title">历史记录</text>
-      <div class="time-range" onclick="toggleRange">
-        <text class="time-range-text">{{ rangeLabel }}</text>
-      </div>
-    </div>
-
-    <!-- 每日体态分布 -->
-    <div class="chart-card">
-      <div class="card-header">
-        <text class="card-title">📊 体态分布</text>
-        <text class="card-sub">{{ today }}</text>
-      </div>
-      <pie-chart data="{{ distribution }}" size="130"></pie-chart>
-    </div>
-
-    <!-- 7日趋势 -->
-    <div class="chart-card">
-      <div class="card-header">
-        <text class="card-title">📈 7日评分趋势</text>
-      </div>
-      <line-chart
-        data="{{ trendData }}"
-        labels="{{ trendLabels }}"
-        width="400"
-        height="100"
-        lineColor="#00C853"
-      ></line-chart>
     </div>
 
     <!-- 统计摘要 -->
     <div class="stats-card">
-      <div class="stat-row" for="{{ statsSummary }}">
-        <text class="stat-icon">{{ $item.icon }}</text>
-        <text class="stat-label">{{ $item.label }}</text>
-        <text class="stat-value">{{ $item.value }}</text>
+      <div class="stat-row">
+        <text class="stat-icon">📊</text>
+        <text class="stat-label">总记录</text>
+        <text class="stat-value">{{ totalRecords }}</text>
+      </div>
+      <div class="stat-row">
+        <text class="stat-icon">✅</text>
+        <text class="stat-label">正常率</text>
+        <text class="stat-value">{{ normalRate }}%</text>
+      </div>
+      <div class="stat-row">
+        <text class="stat-icon">⚠️</text>
+        <text class="stat-label">异常次数</text>
+        <text class="stat-value">{{ anomalyCount }}</text>
+      </div>
+    </div>
+
+    <!-- 体态分布（纯 div 条形图） -->
+    <div class="chart-card">
+      <text class="card-title">体态分布</text>
+      <div class="bar-row" for="{{ distribution }}">
+        <text class="bar-label">{{ $item.label }}</text>
+        <div class="bar-track">
+          <div class="bar-fill" style="width: {{ $item.percent }}px; background-color: {{ $item.color }}"></div>
+        </div>
+        <text class="bar-value">{{ $item.count }}</text>
+      </div>
+    </div>
+
+    <!-- 7日趋势（纯 div 折线） -->
+    <div class="chart-card">
+      <text class="card-title">7日评分趋势</text>
+      <div class="trend-row">
+        <div class="trend-bar" for="{{ trendData }}">
+          <div class="trend-col">
+            <div class="trend-fill" style="height: {{ $item }}px"></div>
+          </div>
+          <text class="trend-label">{{ trendLabels[$idx] }}</text>
+        </div>
       </div>
     </div>
 
@@ -87,61 +96,45 @@ const POSE_COLORS = {
 
 export default {
   private: {
-    today: '',
-    rangeLabel: '近7天',
+    totalRecords: 0,
+    normalRate: 0,
+    anomalyCount: 0,
     distribution: [],
     trendData: [],
     trendLabels: [],
-    statsSummary: [
-      { icon: '📊', label: '总记录', value: '0' },
-      { icon: '✅', label: '正常率', value: '0%' },
-      { icon: '⚠️', label: '异常次数', value: '0' },
-    ],
     _dataStore: null,
   },
 
   async onReady() {
-    this._setToday()
     this._dataStore = new DataStore()
     await this._dataStore.init()
     this._loadData()
   },
 
-  _setToday() {
-    const now = new Date()
-    this.today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  },
-
   async _loadData() {
-    // 加载今日分布
     const todayStats = await this._dataStore.getDailyStats()
     const dist = []
     let total = 0
     for (const [pose, count] of Object.entries(todayStats.distribution || {})) {
-      dist.push({ label: POSE_LABELS[pose] || pose, value: count, color: POSE_COLORS[pose] || '#666' })
+      dist.push({ label: POSE_LABELS[pose] || pose, count: count, color: POSE_COLORS[pose] || '#666', percent: 0 })
       total += count
     }
-    this.distribution = dist.length > 0 ? dist : [{ label: '暂无数据', value: 1, color: '#333' }]
 
-    // 统计摘要
+    // 计算百分比条宽度
+    const maxCount = Math.max(...dist.map(d => d.count), 1)
+    dist.forEach(d => { d.percent = Math.round((d.count / maxCount) * 150) })
+
+    this.distribution = dist.length > 0 ? dist : [{ label: '暂无数据', count: 0, color: '#333', percent: 0 }]
+    this.totalRecords = total
+
     const normalCount = (todayStats.distribution || {})[POSE_TYPE.STANDARD_SIT] || 0
-      + (todayStats.distribution || {})[POSE_TYPE.STANDARD_STAND] || 0
-    const normalRate = total > 0 ? Math.round(normalCount / total * 100) : 0
-
-    this.statsSummary = [
-      { icon: '📊', label: '总记录', value: String(total) },
-      { icon: '✅', label: '正常率', value: normalRate + '%' },
-      { icon: '⚠️', label: '异常次数', value: String(total - normalCount) },
-    ]
+    this.normalRate = total > 0 ? Math.round(normalCount / total * 100) : 0
+    this.anomalyCount = total - normalCount
 
     // 7日趋势
     const weekly = await this._dataStore.getWeeklyStats(7)
-    this.trendData = weekly.map(d => d.total > 0 ? Math.round(d.avgConfidence * 100) : 0)
+    this.trendData = weekly.map(d => d.total > 0 ? Math.round(d.avgConfidence * 80) : 5)
     this.trendLabels = weekly.map(d => d.date.slice(5))
-  },
-
-  toggleRange() {
-    // 简化：仅显示近7天
   },
 
   goTo(page) {
@@ -167,37 +160,31 @@ export default {
   height: 44px;
   flex-direction: row;
   align-items: center;
-  justify-content: space-between;
   padding: 0 12px;
   background-color: #1a1a2e;
 }
 
-.back-btn { width: 30px; height: 30px; justify-content: center; align-items: center; }
-.back-icon { font-size: 20px; color: #ffffff; }
-.title { font-size: 16px; color: #ffffff; font-weight: bold; }
-.time-range { padding: 4px 10px; background-color: #2979FF; border-radius: 10px; }
-.time-range-text { font-size: 11px; color: #ffffff; }
-
-.chart-card {
-  margin: 6px 12px;
-  padding: 10px;
-  background-color: #1a1a2e;
-  border-radius: 10px;
+.back-btn {
+  width: 30px;
+  height: 30px;
+  justify-content: center;
   align-items: center;
 }
 
-.card-header {
-  flex-direction: row;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 8px;
+.back-icon {
+  font-size: 20px;
+  color: #ffffff;
 }
 
-.card-title { font-size: 13px; color: #ffffff; font-weight: bold; }
-.card-sub { font-size: 11px; color: #666666; }
+.title {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+  margin-left: 10px;
+}
 
 .stats-card {
-  margin: 6px 12px;
+  margin: 8px 12px;
   padding: 10px;
   background-color: #1a1a2e;
   border-radius: 10px;
@@ -207,14 +194,101 @@ export default {
   flex-direction: row;
   align-items: center;
   padding: 6px 0;
-  border-bottom-width: 1px;
-  border-bottom-color: #2a2a4e;
 }
 
-.stat-row:last-child { border-bottom-width: 0; }
-.stat-icon { font-size: 16px; margin-right: 8px; }
-.stat-label { font-size: 12px; color: #888888; flex: 1; }
-.stat-value { font-size: 14px; color: #ffffff; font-weight: bold; }
+.stat-icon {
+  font-size: 16px;
+  margin-right: 8px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #888888;
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 14px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.chart-card {
+  margin: 0 12px 8px;
+  padding: 10px;
+  background-color: #1a1a2e;
+  border-radius: 10px;
+}
+
+.card-title {
+  font-size: 13px;
+  color: #ffffff;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.bar-row {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.bar-label {
+  font-size: 11px;
+  color: #aaaaaa;
+  width: 60px;
+}
+
+.bar-track {
+  flex: 1;
+  height: 14px;
+  background-color: #2a2a4e;
+  border-radius: 3px;
+  margin: 0 8px;
+}
+
+.bar-fill {
+  height: 14px;
+  border-radius: 3px;
+}
+
+.bar-value {
+  font-size: 11px;
+  color: #888888;
+  width: 30px;
+  text-align: right;
+}
+
+.trend-row {
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 100px;
+}
+
+.trend-bar {
+  flex-direction: column;
+  align-items: center;
+  width: 40px;
+}
+
+.trend-col {
+  width: 20px;
+  height: 80px;
+  justify-content: flex-end;
+}
+
+.trend-fill {
+  width: 20px;
+  background-color: #00C853;
+  border-radius: 3px 3px 0 0;
+}
+
+.trend-label {
+  font-size: 9px;
+  color: #666666;
+  margin-top: 4px;
+}
 
 .bottom-nav {
   flex: 1;
@@ -226,8 +300,19 @@ export default {
   border-top-color: #2a2a4e;
 }
 
-.nav-item { flex-direction: column; align-items: center; padding: 4px 10px; }
-.nav-item.active .nav-label { color: #2979FF; }
-.nav-icon { font-size: 18px; }
-.nav-label { font-size: 9px; color: #888888; margin-top: 2px; }
+.nav-item {
+  flex-direction: column;
+  align-items: center;
+  padding: 4px 10px;
+}
+
+.nav-icon {
+  font-size: 18px;
+}
+
+.nav-label {
+  font-size: 9px;
+  color: #888888;
+  margin-top: 2px;
+}
 </style>
