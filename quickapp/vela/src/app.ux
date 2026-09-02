@@ -1,14 +1,10 @@
-module.exports = {
-  globalData: {
-    aiInitialized: false,
-    mockMode: true,
+<script>
+export default {
+  onCreate() {
+    console.log("app created")
   },
-
-  onCreate: function () {
-    console.log('[App] onCreate')
-  },
-
-  onDestroy: function () {
-    console.log('[App] onDestroy')
-  },
+  onDestroy() {
+    console.log("app destroyed")
+  }
 }
+</script>
