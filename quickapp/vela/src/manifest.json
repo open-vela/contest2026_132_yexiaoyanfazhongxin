@@ -1,33 +1,21 @@
 {
-  "package": "com.openvela.posture.guard",
-  "name": "体态安全卫士",
+  "package": "com.application.watch.demo",
+  "name": "vela",
   "versionName": "1.0.0",
   "versionCode": 1,
   "minPlatformVersion": 1000,
   "icon": "/common/logo.png",
-  "simulationVersion": "default",
   "deviceTypeList": [
     "watch"
   ],
   "features": [
-    { "name": "system.router" },
-    { "name": "system.prompt" },
-    { "name": "system.storage" },
-    { "name": "system.sensor" },
-    { "name": "system.vibrator" },
-    { "name": "system.crypto" },
-    { "name": "system.configuration" },
-    { "name": "service.health" }
+    {
+      "name": "system.router"
+    }
   ],
   "config": {
-    "logLevel": "debug",
-    "designWidth": 480,
-    "background": {
-      "features": [
-        "system.sensor",
-        "service.health"
-      ]
-    }
+    "logLevel": "log",
+    "designWidth": "device-width"
   },
   "router": {
     "entry": "pages/index",
@@ -35,11 +23,8 @@
       "pages/index": {
         "component": "index"
       },
-      "pages/history": {
-        "component": "history"
-      },
-      "pages/settings": {
-        "component": "settings"
+      "pages/detail": {
+        "component": "detail"
       }
     }
   }
