@@ -1,0 +1,233 @@
+<!--
+  history.ux - 历史记录页
+
+  功能：
+  - 显示最近的姿态识别记录
+  - 每条记录包含：时间、姿态名称、置信度
+  - 支持清空历史记录
+  - 数据持久化到本地存储
+-->
+<template>
+  <div class="page-container">
+    <!-- 顶部导航 -->
+    <div class="top-bar">
+      <text class="back-btn" onclick="goBack">← 返回</text>
+      <text class="page-title">📋 历史记录</text>
+    </div>
+
+    <!-- 空状态提示 -->
+    <div class="empty-state" if="{{records.length === 0}}">
+      <text class="empty-icon">📭</text>
+      <text class="empty-text">暂无识别记录</text>
+      <text class="empty-hint">启动姿态识别后，结果将自动记录</text>
+    </div>
+
+    <!-- 记录列表 -->
+    <list class="record-list" if="{{records.length > 0}}">
+      <list-item type="record" for="{{records}}" class="record-item">
+        <div class="record-left">
+          <text class="record-icon">{{$item.icon}}</text>
+          <div class="record-info">
+            <text class="record-posture">{{$item.postureName}}</text>
+            <text class="record-time">{{$item.timeStr}}</text>
+          </div>
+        </div>
+        <text class="record-conf">{{$item.confStr}}</text>
+      </list-item>
+    </list>
+
+    <!-- 清空按钮 -->
+    <div class="bottom-bar" if="{{records.length > 0}}">
+      <text class="clear-btn" onclick="clearHistory">🗑️ 清空记录</text>
+      <text class="record-count">共 {{records.length}} 条记录</text>
+    </div>
+  </div>
+</template>
+
+<script>
+import router from '@system.router';
+import storage from '@system.storage';
+
+var constants = require('../../common/constants');
+
+export default {
+  private: {
+    records: []  // 历史记录数组
+  },
+
+  /**
+   * 页面显示时加载历史记录
+   */
+  onShow() {
+    this._loadHistory();
+  },
+
+  /**
+   * 返回上一页
+   */
+  goBack() {
+    router.back();
+  },
+
+  /**
+   * 清空历史记录
+   */
+  clearHistory() {
+    this.records = [];
+    storage.set({
+      key: constants.STORAGE_KEYS.HISTORY,
+      value: JSON.stringify([]),
+      success: function () {
+        console.log('[History] 历史记录已清空');
+      },
+      fail: function (data, code) {
+        console.error('[History] 清空失败: ' + code);
+      }
+    });
+  },
+
+  /**
+   * 从本地存储加载历史记录
+   */
+  _loadHistory() {
+    var self = this;
+    storage.get({
+      key: constants.STORAGE_KEYS.HISTORY,
+      success: function (data) {
+        try {
+          self.records = JSON.parse(data) || [];
+          console.log('[History] 加载了 ' + self.records.length + ' 条记录');
+        } catch (e) {
+          self.records = [];
+        }
+      },
+      fail: function (data, code) {
+        console.log('[History] 无历史记录或读取失败: ' + code);
+        self.records = [];
+      }
+    });
+  }
+}
+</script>
+
+<style>
+/* 页面容器 */
+.page-container {
+  flex-direction: column;
+  background-color: #0d0d1a;
+  padding: 10px;
+  width: 100%;
+  height: 100%;
+}
+
+/* 顶部导航 */
+.top-bar {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.back-btn {
+  font-size: 14px;
+  color: #4fc3f7;
+  margin-right: 12px;
+}
+
+.page-title {
+  font-size: 16px;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* 空状态 */
+.empty-state {
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+}
+
+.empty-text {
+  font-size: 14px;
+  color: #888888;
+  margin-bottom: 4px;
+}
+
+.empty-hint {
+  font-size: 11px;
+  color: #555555;
+}
+
+/* 记录列表 */
+.record-list {
+  flex: 1;
+  flex-direction: column;
+}
+
+.record-item {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 6px;
+}
+
+.record-left {
+  flex-direction: row;
+  align-items: center;
+}
+
+.record-icon {
+  font-size: 20px;
+  margin-right: 10px;
+}
+
+.record-info {
+  flex-direction: column;
+}
+
+.record-posture {
+  font-size: 14px;
+  color: #ffffff;
+}
+
+.record-time {
+  font-size: 10px;
+  color: #666666;
+  margin-top: 2px;
+}
+
+.record-conf {
+  font-size: 12px;
+  color: #4CAF50;
+}
+
+/* 底部栏 */
+.bottom-bar {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top-width: 1px;
+  border-top-color: #333344;
+}
+
+.clear-btn {
+  font-size: 12px;
+  color: #FF5252;
+  padding: 4px 8px;
+}
+
+.record-count {
+  font-size: 11px;
+  color: #666666;
+}
+</style>

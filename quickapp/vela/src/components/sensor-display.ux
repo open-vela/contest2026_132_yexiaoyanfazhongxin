@@ -1,0 +1,261 @@
+<!--
+  sensor-display.ux - 传感器数据实时显示组件
+
+  功能：
+  - 显示6轴传感器实时数据（加速度XYZ + 陀螺仪XYZ）
+  - 简易条形图可视化各轴数值大小
+  - 显示采样率和缓冲区状态
+
+  属性：
+  - accelData: { x, y, z } 加速度数据
+  - gyroData: { x, y, z } 陀螺仪数据
+  - sampleRate: 当前采样率
+  - bufferLength: 缓冲区当前帧数
+  - bufferMax: 缓冲区最大帧数
+  - isRunning: 传感器是否运行中
+-->
+<template>
+  <div class="sensor-panel">
+    <!-- 标题栏 -->
+    <div class="panel-header">
+      <text class="panel-title">📡 传感器数据</text>
+      <text class="status-dot {{isRunning ? 'active' : 'inactive'}}">
+        {{isRunning ? '●' : '○'}}
+      </text>
+    </div>
+
+    <!-- 加速度计数据 -->
+    <div class="data-section">
+      <text class="section-label">加速度计 (m/s²)</text>
+      <div class="data-row">
+        <text class="axis-label">X</text>
+        <div class="bar-container">
+          <div class="bar accel-bar-x" style="width: {{accelBarX}}px"></div>
+        </div>
+        <text class="data-value">{{accelX}}</text>
+      </div>
+      <div class="data-row">
+        <text class="axis-label">Y</text>
+        <div class="bar-container">
+          <div class="bar accel-bar-y" style="width: {{accelBarY}}px"></div>
+        </div>
+        <text class="data-value">{{accelY}}</text>
+      </div>
+      <div class="data-row">
+        <text class="axis-label">Z</text>
+        <div class="bar-container">
+          <div class="bar accel-bar-z" style="width: {{accelBarZ}}px"></div>
+        </div>
+        <text class="data-value">{{accelZ}}</text>
+      </div>
+    </div>
+
+    <!-- 陀螺仪数据 -->
+    <div class="data-section">
+      <text class="section-label">陀螺仪 (rad/s)</text>
+      <div class="data-row">
+        <text class="axis-label">X</text>
+        <div class="bar-container">
+          <div class="bar gyro-bar-x" style="width: {{gyroBarX}}px"></div>
+        </div>
+        <text class="data-value">{{gyroX}}</text>
+      </div>
+      <div class="data-row">
+        <text class="axis-label">Y</text>
+        <div class="bar-container">
+          <div class="bar gyro-bar-y" style="width: {{gyroBarY}}px"></div>
+        </div>
+        <text class="data-value">{{gyroY}}</text>
+      </div>
+      <div class="data-row">
+        <text class="axis-label">Z</text>
+        <div class="bar-container">
+          <div class="bar gyro-bar-z" style="width: {{gyroBarZ}}px"></div>
+        </div>
+        <text class="data-value">{{gyroZ}}</text>
+      </div>
+    </div>
+
+    <!-- 状态信息 -->
+    <div class="status-bar">
+      <text class="status-text">采样: {{sampleRate}}Hz</text>
+      <text class="status-text">缓冲: {{bufferLength}}/{{bufferMax}}</text>
+    </div>
+  </div>
+</template>
+
+<script>
+/**
+ * 传感器数据显示组件
+ */
+export default {
+  props: {
+    // 加速度数据 { x, y, z }
+    accelData: {
+      type: Object,
+      default: function () { return { x: 0, y: 0, z: 0 }; }
+    },
+    // 陀螺仪数据 { x, y, z }
+    gyroData: {
+      type: Object,
+      default: function () { return { x: 0, y: 0, z: 0 }; }
+    },
+    // 采样率
+    sampleRate: {
+      type: Number,
+      default: 50
+    },
+    // 缓冲区当前帧数
+    bufferLength: {
+      type: Number,
+      default: 0
+    },
+    // 缓冲区最大帧数
+    bufferMax: {
+      type: Number,
+      default: 50
+    },
+    // 传感器是否运行
+    isRunning: {
+      type: Boolean,
+      default: false
+    }
+  },
+
+  computed: {
+    // 格式化加速度数值
+    accelX: function () { return (this.accelData.x || 0).toFixed(1); },
+    accelY: function () { return (this.accelData.y || 0).toFixed(1); },
+    accelZ: function () { return (this.accelData.z || 0).toFixed(1); },
+
+    // 格式化陀螺仪数值
+    gyroX: function () { return (this.gyroData.x || 0).toFixed(2); },
+    gyroY: function () { return (this.gyroData.y || 0).toFixed(2); },
+    gyroZ: function () { return (this.gyroData.z || 0).toFixed(2); },
+
+    // 条形图宽度计算（最大60px）
+    // 加速度范围约 ±20m/s², 映射到 0-60px
+    accelBarX: function () { return Math.min(60, Math.abs(this.accelData.x || 0) * 3); },
+    accelBarY: function () { return Math.min(60, Math.abs(this.accelData.y || 0) * 3); },
+    accelBarZ: function () { return Math.min(60, Math.abs(this.accelData.z || 0) * 3); },
+
+    // 陀螺仪范围约 ±10rad/s, 映射到 0-60px
+    gyroBarX: function () { return Math.min(60, Math.abs(this.gyroData.x || 0) * 6); },
+    gyroBarY: function () { return Math.min(60, Math.abs(this.gyroData.y || 0) * 6); },
+    gyroBarZ: function () { return Math.min(60, Math.abs(this.gyroData.z || 0) * 6); }
+  }
+}
+</script>
+
+<style>
+/* 面板容器 */
+.sensor-panel {
+  flex-direction: column;
+  background-color: #1a1a2e;
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 8px;
+  width: 92%;
+}
+
+/* 标题栏 */
+.panel-header {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.panel-title {
+  font-size: 14px;
+  color: #e0e0e0;
+  font-weight: bold;
+}
+
+.status-dot {
+  font-size: 12px;
+}
+
+.status-dot.active {
+  color: #4CAF50;
+}
+
+.status-dot.inactive {
+  color: #666666;
+}
+
+/* 数据区域 */
+.data-section {
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.section-label {
+  font-size: 11px;
+  color: #888888;
+  margin-bottom: 4px;
+}
+
+/* 数据行 */
+.data-row {
+  flex-direction: row;
+  align-items: center;
+  margin-bottom: 3px;
+  height: 18px;
+}
+
+.axis-label {
+  font-size: 11px;
+  color: #aaaaaa;
+  width: 16px;
+}
+
+/* 条形图容器 */
+.bar-container {
+  flex: 1;
+  height: 8px;
+  background-color: #2a2a3e;
+  border-radius: 4px;
+  margin-left: 4px;
+  margin-right: 6px;
+}
+
+/* 条形图 */
+.bar {
+  height: 8px;
+  border-radius: 4px;
+}
+
+/* 加速度条颜色 (蓝绿色系) */
+.accel-bar-x { background-color: #00BCD4; }
+.accel-bar-y { background-color: #26C6DA; }
+.accel-bar-z { background-color: #4DD0E1; }
+
+/* 陀螺仪条颜色 (紫粉色系) */
+.gyro-bar-x { background-color: #E91E63; }
+.gyro-bar-y { background-color: #F06292; }
+.gyro-bar-z { background-color: #F48FB1; }
+
+/* 数值 */
+.data-value {
+  font-size: 11px;
+  color: #cccccc;
+  width: 48px;
+  text-align: right;
+}
+
+/* 状态栏 */
+.status-bar {
+  flex-direction: row;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top-width: 1px;
+  border-top-color: #333344;
+}
+
+.status-text {
+  font-size: 10px;
+  color: #666666;
+}
+</style>

@@ -1,1 +1,14 @@
-{"a":{"b":"default hello"}}
+{
+  "app_name": "Posture Guard",
+  "posture_standing": "Standing",
+  "posture_sitting": "Sitting",
+  "posture_walking": "Walking",
+  "posture_raising_hand": "Raising Hand",
+  "posture_falling": "Falling",
+  "status_running": "Running",
+  "status_stopped": "Stopped",
+  "btn_start": "Start",
+  "btn_stop": "Stop",
+  "mode_mock": "Mock Mode",
+  "mode_real": "Real Sensor"
+}

@@ -1,1 +1,14 @@
-{"a":{"b":"你好"}}
+{
+  "app_name": "姿态守护",
+  "posture_standing": "站立",
+  "posture_sitting": "坐下",
+  "posture_walking": "行走",
+  "posture_raising_hand": "抬手",
+  "posture_falling": "摔倒",
+  "status_running": "运行中",
+  "status_stopped": "已停止",
+  "btn_start": "启动",
+  "btn_stop": "停止",
+  "mode_mock": "模拟模式",
+  "mode_real": "真实传感器"
+}

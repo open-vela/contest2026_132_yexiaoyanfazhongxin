@@ -1,48 +1,515 @@
+<!--
+  index.ux - 主页仪表盘
+
+  核心功能：
+  1. 启动/停止传感器和模型推理
+  2. 实时显示传感器原始数据（通过sensor-display组件）
+  3. 显示姿态识别结果（通过posture-result组件）
+  4. 提供模拟模式测试（无需真实硬件）
+  5. 导航到设置页和历史页
+
+  生命周期管理：
+  - onShow: 启动传感器和推理
+  - onHide: 暂停传感器和推理（功耗优化）
+  - onDestroy: 清理资源
+-->
 <template>
-  <div class="demo-page">
-    <text class="title">{{ $t("a.b") }},欢迎打开{{ title }}</text>
-    <!-- 点击跳转详情页 -->
-    <input class="btn" type="button" value="跳转到详情页" onclick="routeDetail" />
+  <div class="page-container">
+    <!-- 顶部标题栏 -->
+    <div class="top-bar">
+      <text class="app-title">姿态守护</text>
+      <div class="nav-buttons">
+        <text class="nav-btn" onclick="goToHistory">📋</text>
+        <text class="nav-btn" onclick="goToSettings">⚙️</text>
+      </div>
+    </div>
+
+    <!-- 模式切换 -->
+    <div class="mode-bar">
+      <text class="mode-label">{{mockMode ? '🎮 模拟模式' : '📱 真实传感器'}}</text>
+      <div class="toggle-btn" onclick="toggleMockMode">
+        <text class="toggle-text">{{mockMode ? '切换真实' : '切换模拟'}}</text>
+      </div>
+    </div>
+
+    <!-- 模拟模式姿态选择器 -->
+    <div class="mock-selector" if="{{mockMode}}">
+      <text class="mock-label">模拟姿态:</text>
+      <div class="mock-buttons">
+        <text class="mock-btn {{mockPosture === 0 ? 'selected' : ''}}" onclick="selectMockPosture(0)">🧍</text>
+        <text class="mock-btn {{mockPosture === 1 ? 'selected' : ''}}" onclick="selectMockPosture(1)">🪑</text>
+        <text class="mock-btn {{mockPosture === 2 ? 'selected' : ''}}" onclick="selectMockPosture(2)">🚶</text>
+        <text class="mock-btn {{mockPosture === 3 ? 'selected' : ''}}" onclick="selectMockPosture(3)">🖐️</text>
+        <text class="mock-btn {{mockPosture === 4 ? 'selected' : ''}}" onclick="selectMockPosture(4)">⚠️</text>
+      </div>
+    </div>
+
+    <!-- 启动/停止按钮 -->
+    <div class="control-bar">
+      <text class="control-btn {{isRunning ? 'stop' : 'start'}}" onclick="toggleRunning">
+        {{isRunning ? '⏹ 停止' : '▶️ 启动'}}
+      </text>
+    </div>
+
+    <!-- 传感器数据显示 -->
+    <sensor-display
+      accelData="{{accelData}}"
+      gyroData="{{gyroData}}"
+      sampleRate="{{sampleRate}}"
+      bufferLength="{{bufferLength}}"
+      bufferMax="{{bufferMax}}"
+      isRunning="{{isRunning}}"
+    ></sensor-display>
+
+    <!-- 姿态识别结果 -->
+    <posture-result
+      postureId="{{currentPosture}}"
+      confidence="{{currentConfidence}}"
+      inferenceTime="{{inferenceTime}}"
+      isRunning="{{isRunning}}"
+    ></posture-result>
+
+    <!-- 底部状态 -->
+    <div class="bottom-status">
+      <text class="status-text">{{statusMessage}}</text>
+    </div>
   </div>
 </template>
 
+<import name="sensor-display" src="../../components/sensor-display.ux"></import>
+<import name="posture-result" src="../../components/posture-result.ux"></import>
+
 <script>
-import router from "@system.router"
+/**
+ * 导入核心模块
+ */
+import router from '@system.router';
+
+// 导入自定义模块
+var SensorManager = require('../../common/sensor-manager');
+var Preprocessor = require('../../common/preprocessor');
+var PostureModel = require('../../common/posture-model');
+var constants = require('../../common/constants');
 
 export default {
-  // 页面级组件的数据模型，影响传入数据的覆盖机制：private内定义的属性不允许被覆盖
   private: {
-    title: "示例页面"
+    // ---- 传感器管理 ----
+    sensorManager: null,    // 传感器管理器实例
+    preprocessor: null,     // 预处理器实例
+    model: null,            // 姿态识别模型实例
+
+    // ---- UI数据绑定 ----
+    isRunning: false,       // 是否正在运行
+    mockMode: true,         // 是否模拟模式（默认开启，方便测试）
+    mockPosture: 0,         // 模拟姿态选择
+
+    // 传感器显示数据
+    accelData: { x: 0, y: 0, z: 0 },
+    gyroData: { x: 0, y: 0, z: 0 },
+    sampleRate: constants.DEFAULT_SAMPLE_RATE,
+    bufferLength: 0,
+    bufferMax: constants.MODEL_WINDOW_SIZE,
+
+    // 姿态识别结果
+    currentPosture: -1,
+    currentConfidence: 0,
+    inferenceTime: 0,
+
+    // 状态信息
+    statusMessage: '点击"启动"开始姿态识别',
+
+    // 定时器
+    inferenceTimer: null,   // 推理定时器
+    uiTimer: null           // UI刷新定时器
   },
 
-  routeDetail() {
-    // 跳转到应用内的某个页面，router用法详见：文档->接口->页面路由
-    router.push({
-      uri: "/pages/detail"
-    })
+  /**
+   * 页面显示时（从后台恢复）
+   * 启动传感器和推理
+   */
+  onShow() {
+    console.log('[Index] 页面显示');
+    // 如果之前在运行，恢复运行
+    if (this.isRunning) {
+      this._startSensors();
+    }
+  },
+
+  /**
+   * 页面隐藏时（进入后台）
+   * 暂停传感器和推理，节省功耗
+   */
+  onHide() {
+    console.log('[Index] 页面隐藏，暂停传感器节省功耗');
+    this._stopTimers();
+    if (this.sensorManager) {
+      this.sensorManager.stop();
+    }
+  },
+
+  /**
+   * 页面销毁时
+   * 清理所有资源
+   */
+  onDestroy() {
+    console.log('[Index] 页面销毁');
+    this._cleanup();
+  },
+
+  // ============================================================
+  // 用户交互处理
+  // ============================================================
+
+  /**
+   * 切换运行状态
+   */
+  toggleRunning() {
+    if (this.isRunning) {
+      this._stopAll();
+    } else {
+      this._startAll();
+    }
+  },
+
+  /**
+   * 切换模拟/真实模式
+   */
+  toggleMockMode() {
+    if (this.isRunning) {
+      this._stopAll();
+    }
+    this.mockMode = !this.mockMode;
+    this.statusMessage = this.mockMode ? '已切换到模拟模式' : '已切换到真实传感器模式';
+  },
+
+  /**
+   * 选择模拟姿态
+   */
+  selectMockPosture(id) {
+    this.mockPosture = id;
+    if (this.sensorManager) {
+      this.sensorManager.setMockPosture(id);
+    }
+  },
+
+  /**
+   * 跳转到历史页
+   */
+  goToHistory() {
+    router.push({ uri: 'pages/history' });
+  },
+
+  /**
+   * 跳转到设置页
+   */
+  goToSettings() {
+    router.push({ uri: 'pages/settings' });
+  },
+
+  // ============================================================
+  // 核心逻辑
+  // ============================================================
+
+  /**
+   * 启动所有模块
+   */
+  _startAll() {
+    console.log('[Index] 启动姿态识别系统');
+
+    // 初始化模块（如果尚未初始化）
+    if (!this.sensorManager) {
+      this.sensorManager = new SensorManager();
+    }
+    if (!this.preprocessor) {
+      this.preprocessor = new Preprocessor();
+    }
+    if (!this.model) {
+      this.model = new PostureModel();
+    }
+
+    // 重置预处理器状态
+    this.preprocessor.reset();
+
+    // 启动传感器
+    this._startSensors();
+
+    // 启动推理定时器
+    this._startInferenceTimer();
+
+    // 启动UI刷新定时器
+    this._startUITimer();
+
+    this.isRunning = true;
+    this.statusMessage = '正在运行 - ' + (this.mockMode ? '模拟模式' : '真实传感器');
+  },
+
+  /**
+   * 停止所有模块
+   */
+  _stopAll() {
+    console.log('[Index] 停止姿态识别系统');
+
+    this._stopTimers();
+
+    if (this.sensorManager) {
+      this.sensorManager.stop();
+    }
+
+    this.isRunning = false;
+    this.currentPosture = -1;
+    this.currentConfidence = 0;
+    this.statusMessage = '已停止';
+  },
+
+  /**
+   * 启动传感器
+   */
+  _startSensors() {
+    if (!this.sensorManager) return;
+
+    var rate = this.sampleRate || constants.DEFAULT_SAMPLE_RATE;
+
+    // 设置数据回调（可选，用于额外处理）
+    this.sensorManager.onData(function () {
+      // 数据到达时的回调，主要逻辑在定时器中处理
+    });
+
+    // 启动传感器
+    this.sensorManager.start(rate, this.mockMode);
+  },
+
+  /**
+   * 启动推理定时器
+   * 按固定间隔执行模型推理
+   */
+  _startInferenceTimer() {
+    var self = this;
+    this.inferenceTimer = setInterval(function () {
+      self._runInference();
+    }, constants.INFERENCE_INTERVAL_MS);
+  },
+
+  /**
+   * 启动UI刷新定时器
+   * 定期更新传感器数据显示
+   */
+  _startUITimer() {
+    var self = this;
+    this.uiTimer = setInterval(function () {
+      self._updateUI();
+    }, constants.UI_REFRESH_INTERVAL_MS);
+  },
+
+  /**
+   * 停止所有定时器
+   */
+  _stopTimers() {
+    if (this.inferenceTimer) {
+      clearInterval(this.inferenceTimer);
+      this.inferenceTimer = null;
+    }
+    if (this.uiTimer) {
+      clearInterval(this.uiTimer);
+      this.uiTimer = null;
+    }
+  },
+
+  /**
+   * 执行一次模型推理
+   */
+  _runInference() {
+    if (!this.sensorManager || !this.preprocessor || !this.model) return;
+    if (!this.sensorManager.isBufferReady()) {
+      this.statusMessage = '等待数据... (' + this.sensorManager.getBufferLength() + '/' + constants.MODEL_WINDOW_SIZE + ')';
+      return;
+    }
+
+    // 获取原始传感器数据
+    var rawBuffer = this.sensorManager.getBuffer();
+    var bufferLen = this.sensorManager.getBufferLength();
+
+    // 预处理
+    var processedData = this.preprocessor.processBuffer(rawBuffer, bufferLen);
+
+    // 模型推理
+    var result = this.model.predict(processedData);
+
+    // 更新结果
+    this.currentPosture = result.posture;
+    this.currentConfidence = result.confidence;
+    this.inferenceTime = result.inferenceTimeMs;
+
+    // 更新状态消息
+    if (result.posture >= 0) {
+      var label = constants.POSTURE_LABELS[result.posture] || '未知';
+      var conf = (result.confidence * 100).toFixed(0);
+      this.statusMessage = '识别: ' + label + ' (' + conf + '%)';
+    }
+  },
+
+  /**
+   * 更新UI显示
+   */
+  _updateUI() {
+    if (!this.sensorManager) return;
+
+    // 更新传感器状态
+    var status = this.sensorManager.getStatus();
+    this.bufferLength = status.bufferLength;
+
+    // 获取最新帧数据用于显示
+    var latest = this.sensorManager.getLatestFrame();
+    if (latest) {
+      this.accelData = { x: latest.accX, y: latest.accY, z: latest.accZ };
+      this.gyroData = { x: latest.gyroX, y: latest.gyroY, z: latest.gyroZ };
+    }
+  },
+
+  /**
+   * 清理所有资源
+   */
+  _cleanup() {
+    this._stopTimers();
+    if (this.sensorManager) {
+      this.sensorManager.stop();
+      this.sensorManager = null;
+    }
+    this.preprocessor = null;
+    this.model = null;
   }
 }
 </script>
 
 <style>
-.demo-page {
+/* 页面容器 - 手表深色主题 */
+.page-container {
   flex-direction: column;
-  justify-content: center;
   align-items: center;
+  background-color: #0d0d1a;
+  padding: 8px;
+  width: 100%;
+  height: 100%;
 }
 
-.title {
-  font-size: 20px;
-  text-align: center;
+/* 顶部标题栏 */
+.top-bar {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 92%;
+  margin-bottom: 6px;
 }
 
-.btn {
-  width: 200px;
-  height: 40px;
-  margin-top: 20px;
-  border-radius: 5px;
-  background-color: #09ba07;
-  font-size: 20px;
+.app-title {
+  font-size: 18px;
   color: #ffffff;
+  font-weight: bold;
+}
+
+.nav-buttons {
+  flex-direction: row;
+}
+
+.nav-btn {
+  font-size: 16px;
+  margin-left: 12px;
+  padding: 4px;
+}
+
+/* 模式切换栏 */
+.mode-bar {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  width: 92%;
+  margin-bottom: 6px;
+}
+
+.mode-label {
+  font-size: 12px;
+  color: #888888;
+}
+
+.toggle-btn {
+  background-color: #2a2a4a;
+  border-radius: 12px;
+  padding: 4px 10px;
+}
+
+.toggle-text {
+  font-size: 11px;
+  color: #4fc3f7;
+}
+
+/* 模拟姿态选择器 */
+.mock-selector {
+  flex-direction: column;
+  width: 92%;
+  margin-bottom: 6px;
+  padding: 6px;
+  background-color: #1a1a2e;
+  border-radius: 8px;
+}
+
+.mock-label {
+  font-size: 11px;
+  color: #888888;
+  margin-bottom: 4px;
+}
+
+.mock-buttons {
+  flex-direction: row;
+  justify-content: space-around;
+}
+
+.mock-btn {
+  font-size: 20px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background-color: #2a2a3e;
+}
+
+.mock-btn.selected {
+  background-color: #3a3a6a;
+  border-width: 2px;
+  border-color: #4fc3f7;
+}
+
+/* 控制按钮 */
+.control-bar {
+  width: 92%;
+  margin-bottom: 8px;
+}
+
+.control-btn {
+  text-align: center;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 8px;
+  border-radius: 20px;
+  color: #ffffff;
+}
+
+.control-btn.start {
+  background-color: #2E7D32;
+}
+
+.control-btn.stop {
+  background-color: #C62828;
+}
+
+/* 底部状态 */
+.bottom-status {
+  width: 92%;
+  padding: 6px;
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+.status-text {
+  font-size: 11px;
+  color: #888888;
+  text-align: center;
 }
 </style>

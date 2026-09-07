@@ -1,7 +1,7 @@
 {
-  "name": "vela",
+  "name": "posture-guard",
   "version": "1.0.0",
-  "description": "",
+  "description": "OpenVela智能手表端侧姿态识别快应用 - 基于IMU传感器和轻量CNN的实时姿态检测",
   "engines": {
     "node": ">=8.10"
   },
@@ -10,18 +10,6 @@
     "build": "aiot build",
     "release": "aiot release",
     "lint": "eslint --format codeframe --fix --ext .ux,.js src/"
-  },
-  "lint-staged": {
-    "*.{ux,js}": [
-      "prettier --write",
-      "eslint --format codeframe --fix",
-      "git add"
-    ],
-    "*.{less,css}": [
-      "prettier --write",
-      "stylelint --fix --custom-syntax postcss-less",
-      "git add"
-    ]
   },
   "devDependencies": {
     "@aiot-toolkit/jsc": "^1.0.3",
